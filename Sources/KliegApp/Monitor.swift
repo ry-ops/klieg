@@ -25,6 +25,26 @@ final class Monitor {
     }
 
     var herdr: HerdrClient { HerdrClient.fromConfig(config) }
+    var openrig: OpenRigClient { OpenRigClient(config: config) }
+    var github: GitHubClient { GitHubClient() }
+
+    /// Saves settings to ~/.config/klieg/config.json and refreshes with them.
+    func save(_ new: KliegConfig) throws {
+        let enc = JSONEncoder(); enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try FileManager.default.createDirectory(at: KliegConfig.file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try enc.encode(new).write(to: KliegConfig.file, options: .atomic)
+        config = new
+        Task { await refresh() }
+    }
+
+    /// Runs a blocking client call off the main thread, then refreshes. Returns an error message or nil.
+    func act(_ work: @escaping @Sendable () throws -> Void) async -> String? {
+        let err: String? = await Task.detached { () -> String? in
+            do { try work(); return nil } catch { return "\(error)" }
+        }.value
+        await refresh()
+        return err
+    }
 
     func start() {
         guard loop == nil else { return }
@@ -55,9 +75,20 @@ final class Monitor {
         notifyNewBlocked()
     }
 
-    /// Everything Klieg can see right now. M2 adds OpenRig and GitHub here.
+    /// Everything Klieg can see right now: herdr agents, OpenRig seats and queue, and open PRs.
+    /// A failing source lands in `errors` and never hides the others.
     nonisolated static func collect(_ cfg: KliegConfig) -> Snapshot {
-        HerdrClient.fromConfig(cfg).snapshot()
+        var s = HerdrClient.fromConfig(cfg).snapshot()
+        if cfg.openrigHost != nil || Shell.which("rig") != nil {
+            let rig = OpenRigClient(config: cfg)
+            do { s.agents += try rig.agents() } catch { s.errors["openrig"] = "\(error)" }
+            do { s.queue = try rig.activeQueue(limit: 200) } catch { s.errors["openrig"] = s.errors["openrig"] ?? "\(error)" }
+        }
+        let gh = GitHubClient()
+        for repo in cfg.repos {
+            do { s.pullRequests += try gh.pullRequests(repo: repo) } catch { s.errors["github"] = "\(repo): \(error)" }
+        }
+        return s
     }
 
     // MARK: Notifications
@@ -88,6 +119,7 @@ func reasonText(_ a: Agent) -> String {
     switch a.attentionReason {
     case "trust_prompt": return "Claude is asking whether to trust this folder."
     case "permission_prompt": return "It's asking to approve a command."
+    case "billing": return "It's asking about usage credits. Only you can answer that."
     case let r?: return r.replacingOccurrences(of: "_", with: " ")
     case nil: return a.status == .blocked ? "It's waiting for your answer." : a.status.rawValue
     }

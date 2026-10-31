@@ -22,8 +22,17 @@ struct KliegApp: App {
                     switch sheet {
                     case .read(let a): ReadSheet(agent: a).environment(app)
                     case .prompt(let a): PromptSheet(agent: a).environment(app)
+                    case .answer(let a): AnswerSheet(agent: a).environment(app)
                     }
                 }
+                .confirmationDialog(app.confirm?.title ?? "", isPresented: Binding(get: { app.confirm != nil }, set: { if !$0 { app.confirm = nil } }),
+                                    titleVisibility: .visible, presenting: app.confirm) { c in
+                    Button(c.title.replacingOccurrences(of: "?", with: ""), role: .destructive) { app.perform(c) }
+                    Button("Cancel", role: .cancel) {}
+                } message: { c in Text(c.message) }
+                .alert("Klieg couldn't do that", isPresented: Binding(get: { app.actionError != nil }, set: { if !$0 { app.actionError = nil } })) {
+                    Button("OK") {}
+                } message: { Text(app.actionError ?? "") }
         }
         MenuBarExtra {
             MenuBarContent().environment(app)
@@ -60,6 +69,20 @@ final class AppState {
     let monitor = Monitor(config: KliegConfig.load())
     let terminal = TerminalStore()
     var sheet: AgentSheet?
+    var confirm: Confirmation?
+    var actionError: String?
+
+    func perform(_ c: Confirmation) {
+        let rig = monitor.openrig, gh = monitor.github
+        Task {
+            let err: String?
+            switch c {
+            case .stopSeat(let a): err = await monitor.act { _ = try rig.stop(session: a.name) }
+            case .merge(let p): err = await monitor.act { _ = try gh.merge(repo: p.repo, number: p.number) }
+            }
+            actionError = err
+        }
+    }
 
     /// Opens an agent's live session in a new terminal tab.
     func openTerminal(for agent: Agent) {
@@ -129,7 +152,8 @@ struct SectionView: View {
         case .board: BoardView()
         case .needsYou: NeedsYouView()
         case .timeline: TimelineView()
-        default: PlaceholderView(section: section)
+        case .pullRequests: PullRequestsView()
+        case .settings: SettingsView()
         }
     }
 }
