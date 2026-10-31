@@ -17,6 +17,19 @@ struct KliegApp: App {
             RootView()
                 .environment(app)
                 .frame(minWidth: 900, minHeight: 520)
+                .onAppear { app.monitor.start() }
+                .sheet(item: Bindable(app).sheet) { sheet in
+                    switch sheet {
+                    case .read(let a): ReadSheet(agent: a).environment(app)
+                    case .prompt(let a): PromptSheet(agent: a).environment(app)
+                    }
+                }
+        }
+        MenuBarExtra {
+            MenuBarContent().environment(app)
+        } label: {
+            let n = app.monitor.snapshot.needingPerson.count
+            Label(n == 0 ? "Klieg" : "\(n)", systemImage: n == 0 ? "light.beacon.min" : "light.beacon.max.fill")
         }
         .commands {
             CommandMenu("Terminal") {
@@ -28,7 +41,7 @@ struct KliegApp: App {
 }
 
 enum Section: String, CaseIterable, Identifiable {
-    case board = "Board", timeline = "Timeline", needsYou = "Needs You", pullRequests = "Pull Requests", settings = "Settings"
+    case board = "Board", needsYou = "Needs You", timeline = "Timeline", pullRequests = "Pull Requests", settings = "Settings"
     var id: String { rawValue }
     var icon: String {
         switch self {
@@ -44,8 +57,34 @@ enum Section: String, CaseIterable, Identifiable {
 @Observable @MainActor
 final class AppState {
     var section: Section = .board
-    var config = KliegConfig.load()
+    let monitor = Monitor(config: KliegConfig.load())
     let terminal = TerminalStore()
+    var sheet: AgentSheet?
+
+    /// Opens an agent's live session in a new terminal tab.
+    func openTerminal(for agent: Agent) {
+        guard let cmd = agent.attachCommand, !cmd.isEmpty else { return }
+        terminal.newTab(running: cmd, title: agent.name)
+    }
+}
+
+struct MenuBarContent: View {
+    @Environment(AppState.self) private var app
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        let s = app.monitor.snapshot
+        let waiting = s.needingPerson
+        Text(waiting.isEmpty ? "Nobody needs you" : "\(waiting.count) need\(waiting.count == 1 ? "s" : "") you")
+        ForEach(waiting) { a in
+            Button("\(a.name): \(reasonText(a))") { app.section = .needsYou; openWindow(id: "main"); NSApp.activate() }
+        }
+        Divider()
+        Text("\(s.agents.filter { $0.status == .working }.count) working · \(s.agents.count) agents")
+        Button("Open Klieg") { openWindow(id: "main"); NSApp.activate() }
+        Button("Refresh") { Task { await app.monitor.refresh() } }
+        Divider()
+        Button("Quit Klieg") { NSApp.terminate(nil) }.keyboardShortcut("q")
+    }
 }
 
 struct RootView: View {
@@ -83,8 +122,20 @@ struct RootView: View {
     }
 }
 
-/// Placeholder content until each milestone fills its section in (see ROADMAP.md).
 struct SectionView: View {
+    let section: Section
+    var body: some View {
+        switch section {
+        case .board: BoardView()
+        case .needsYou: NeedsYouView()
+        case .timeline: TimelineView()
+        default: PlaceholderView(section: section)
+        }
+    }
+}
+
+/// Placeholder content until its milestone fills the section in (see ROADMAP.md).
+struct PlaceholderView: View {
     let section: Section
     var body: some View {
         VStack(spacing: 10) {
@@ -96,7 +147,7 @@ struct SectionView: View {
     }
     var blurb: String {
         switch section {
-        case .board: return "Every herdr agent and OpenRig seat, with its state. (M3)"
+        case .board: return "Every herdr agent and OpenRig seat, with its state."
         case .timeline: return "Claims, handoffs, verdicts, PRs and CI, in order. (M3)"
         case .needsYou: return "Agents waiting on you: approvals, questions, credit prompts. (M3)"
         case .pullRequests: return "PRs the agents opened, with CI and signing status. (M3)"
