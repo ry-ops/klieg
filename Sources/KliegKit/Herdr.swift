@@ -306,12 +306,21 @@ public struct HerdrClient: Sendable {
 
     /// Creates a workspace without stealing focus. Returns its id and its first pane's id.
     @discardableResult
-    public func createWorkspace(cwd: String, label: String? = nil) throws -> (workspace: String, pane: String?) {
+    /// With no `cwd`, herdr picks its default folder.
+    public func createWorkspace(cwd: String?, label: String? = nil) throws -> (workspace: String, pane: String?) {
         try requireWritable()
-        var sub = ["workspace", "create", "--cwd", cwd, "--no-focus"]
+        var sub = ["workspace", "create"]
+        if let cwd { sub += ["--cwd", cwd] }
+        sub.append("--no-focus")
         if let label { sub += ["--label", label] }
         let r = try HerdrJSON.result(HerdrJSON.WorkspaceCreateResult.self, from: call(sub))
         return (r.workspace.workspace_id, r.root_pane?.pane_id)
+    }
+
+    /// Closes one pane, ending whatever runs in it (for an agent pane: the agent).
+    public func closePane(_ pane: String) throws {
+        try requireWritable()
+        try call(["pane", "close", try herdrTarget(pane)])
     }
 
     /// Closes a workspace and every pane in it.

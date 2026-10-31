@@ -48,9 +48,11 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
     public let config: KliegConfig
     public let openrig: OpenRigClient
     public let github: GitHubClient
-    /// herdr agents, once M1's client is wired in. nil: herdr ids are refused with a clear message.
+    /// Reads herdr, OpenRig and GitHub into one snapshot. Pull requests are left out: they have their own tool.
+    public let collector: Collector
+    /// herdr agents. nil: herdr ids are refused with a clear message.
     public var herdr: AgentSource?
-    /// Turns two snapshots into timeline events (M1's `Timeline`). nil: the timeline shows queue activity only.
+    /// Turns two snapshots into timeline events. nil: the timeline shows queue activity only.
     public var diff: ((Snapshot, Snapshot) -> [TimelineEvent])?
 
     private let lock = NSLock()
@@ -61,18 +63,19 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
         self.config = config
         self.openrig = OpenRigClient(config: config, runner: runner)
         self.github = GitHubClient(runner: runner)
+        let collector = Collector(config: config, runner: runner, includePullRequests: false)
+        self.collector = collector
+        // The herdr client is built on first use, so starting the server runs no commands.
+        self.herdr = HerdrAgentSource(client: { collector.herdr })
+        self.diff = Timeline.diff
     }
 
     public func snapshot() -> Snapshot {
-        var s = Snapshot()
-        do { s.agents += try openrig.agents() } catch { s.errors["openrig"] = "\(error)" }
-        do { s.queue = try openrig.activeQueue() } catch { s.errors["openrig queue"] = "\(error)" }
-        if let herdr {
-            do { s.agents += try herdr.agents() } catch { s.errors["herdr"] = "\(error)" }
-        }
+        let s = collector.snapshot()
         lock.lock(); defer { lock.unlock() }
         if let last, let diff { diffEvents = Array((diffEvents + diff(last, s)).suffix(500)) }
-        last = s
+        // Keep what a failed source had, so it doesn't all "appear" again when the source is back.
+        last = Timeline.carryOver(from: last, to: s)
         return s
     }
 
@@ -87,7 +90,7 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
     }
 
     func herdrSource() throws -> AgentSource {
-        guard let herdr else { throw KliegError("herdr agents aren't connected to this build of Klieg yet (they arrive with milestone M1).") }
+        guard let herdr else { throw KliegError("herdr agents aren't connected to this Klieg backend.") }
         return herdr
     }
 
@@ -139,8 +142,8 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
             return try openrig.answerPrompt(session: s, answer: answer)
         case .herdr(let h):
             let src = try herdrSource()
-            // When M1 wires this in: make sure `read` returns the whole visible pane, so a small window
-            // can't hide the prompt's wording from this check (the OpenRig path uses rig capture --readable).
+            // HerdrAgentSource.read returns at least the whole visible pane, so the prompt's wording is
+            // there for this check (the OpenRig path uses rig capture --readable).
             if let phrase = PromptGuard.billingPhrase(in: try src.read(h, lines: 40)) {
                 throw KliegError("\(h) is showing a prompt about \"\(phrase)\". Klieg doesn't answer billing or usage-credit prompts; open the pane and answer it yourself.")
             }

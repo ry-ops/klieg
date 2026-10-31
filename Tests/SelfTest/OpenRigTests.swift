@@ -12,7 +12,9 @@ func openrigFixture(_ name: String) -> String {
 }
 
 /// Answers commands from recorded output and remembers every command it was asked to run.
+/// Thread-safe, because the Collector reads its sources at the same time.
 final class FakeRunner: @unchecked Sendable {
+    private let lock = NSLock()
     var calls: [[String]] = []
     var stdins: [String?] = []
     /// First matching rule wins: if every word in `when` appears in the command, reply with `stdout`.
@@ -22,6 +24,7 @@ final class FakeRunner: @unchecked Sendable {
 
     var runner: CommandRunner {
         { [self] args, stdin, _ in
+            lock.lock(); defer { lock.unlock() }
             calls.append(args); stdins.append(stdin)
             let line = args.joined(separator: " ")
             for r in rules where r.when.allSatisfy({ line.contains($0) }) {
@@ -32,7 +35,8 @@ final class FakeRunner: @unchecked Sendable {
     }
 
     func ran(_ words: String...) -> Bool {
-        calls.contains { c in let line = c.joined(separator: " "); return words.allSatisfy { line.contains($0) } }
+        lock.lock(); defer { lock.unlock() }
+        return calls.contains { c in let line = c.joined(separator: " "); return words.allSatisfy { line.contains($0) } }
     }
 }
 
@@ -233,8 +237,8 @@ func mcpTests() {
     let read = rpc(server, 6, "tools/call", ["name": "klieg_read_agent", "arguments": ["agent": "openrig:operator-agent@kernel"]])
     check(toolText(read).contains("usage credits"), "klieg_read_agent returns the screen")
     check(toolFailed(rpc(server, 7, "tools/call", ["name": "klieg_read_agent", "arguments": [:]])), "missing argument is a tool error")
-    check(toolText(rpc(server, 8, "tools/call", ["name": "klieg_read_agent", "arguments": ["agent": "herdr:herdr/w1:p1"]])).contains("M1"),
-          "herdr agents are refused clearly until M1 is wired in")
+    _ = rpc(server, 8, "tools/call", ["name": "klieg_read_agent", "arguments": ["agent": "herdr:herdr/w1:p1"]])
+    check(fake.ran("herdr", "agent read w1:p1"), "herdr ids reach herdr (M3b wired it in)")
 
     // Guards.
     let answer = rpc(server, 9, "tools/call", ["name": "klieg_answer_prompt", "arguments": ["agent": "openrig:operator-agent@kernel", "answer": "1"]])
