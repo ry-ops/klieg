@@ -75,20 +75,9 @@ final class Monitor {
         notifyNewBlocked()
     }
 
-    /// Everything Klieg can see right now: herdr agents, OpenRig seats and queue, and open PRs.
-    /// A failing source lands in `errors` and never hides the others.
+    /// Everything Klieg can see right now, through the shared Collector (the same one the CLI and MCP use).
     nonisolated static func collect(_ cfg: KliegConfig) -> Snapshot {
-        var s = HerdrClient.fromConfig(cfg).snapshot()
-        if cfg.openrigHost != nil || Shell.which("rig") != nil {
-            let rig = OpenRigClient(config: cfg)
-            do { s.agents += try rig.agents() } catch { s.errors["openrig"] = "\(error)" }
-            do { s.queue = try rig.activeQueue(limit: 200) } catch { s.errors["openrig"] = s.errors["openrig"] ?? "\(error)" }
-        }
-        let gh = GitHubClient()
-        for repo in cfg.repos {
-            do { s.pullRequests += try gh.pullRequests(repo: repo) } catch { s.errors["github"] = "\(repo): \(error)" }
-        }
-        return s
+        Collector(config: cfg).snapshot()
     }
 
     // MARK: Notifications
