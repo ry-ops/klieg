@@ -1,0 +1,10 @@
+.build/
+build/
+.swiftpm/
+*.xcodeproj
+.DS_Store
+# OpenRig / agent runtime files dropped into the working tree
+/.claude/
+/.mcp.json
+/.openrig/
+/CLAUDE.md

@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # KliegKit, KliegServer, the klieg CLI and the self-test are cross-platform, so CI builds and tests
+  # them on Linux. The macOS app (SwiftUI + SwiftTerm) is built locally with the Command Line Tools.
+  linux:
+    runs-on: ubuntu-latest
+    container: swift:6.2-noble
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Build
+        run: swift build --product klieg
+      - name: Self-test
+        run: swift run klieg-selftest
+      - name: CLI smoke
+        run: swift run klieg version
