@@ -15,7 +15,8 @@ var targets: [Target] = [
     .target(name: "KliegKit", swiftSettings: v5),
     .target(name: "KliegServer", dependencies: ["KliegKit"], swiftSettings: v5),
     .executableTarget(name: "klieg", dependencies: ["KliegKit", "KliegServer"], path: "Sources/KliegCLI", swiftSettings: v5),
-    .executableTarget(name: "klieg-selftest", dependencies: ["KliegKit", "KliegServer"], path: "Tests/SelfTest", swiftSettings: v5),
+    .executableTarget(name: "klieg-selftest", dependencies: ["KliegKit", "KliegServer"], path: "Tests/SelfTest",
+                      exclude: ["Fixtures"], swiftSettings: v5),
 ]
 
 #if os(macOS)
