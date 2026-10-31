@@ -66,7 +66,7 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
     public func snapshot() -> Snapshot {
         var s = Snapshot()
         do { s.agents += try openrig.agents() } catch { s.errors["openrig"] = "\(error)" }
-        do { s.queue = try openrig.queue() } catch { s.errors["openrig queue"] = "\(error)" }
+        do { s.queue = try openrig.activeQueue() } catch { s.errors["openrig queue"] = "\(error)" }
         if let herdr {
             do { s.agents += try herdr.agents() } catch { s.errors["herdr"] = "\(error)" }
         }
@@ -79,8 +79,10 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
     public func timeline(limit: Int) -> [TimelineEvent] {
         let s = snapshot()
         lock.lock(); let fromDiff = diffEvents; lock.unlock()
+        // Open items come from the snapshot; recent closed ones (done, handed off) from the history list.
+        let history = (try? openrig.queueHistory()) ?? []
         var seen = Set<String>()
-        let all = (fromDiff + OpenRigClient.queueEvents(s.queue)).filter { seen.insert($0.id).inserted }
+        let all = (fromDiff + OpenRigClient.queueEvents(s.queue + history)).filter { seen.insert($0.id).inserted }
         return Array(all.sorted { $0.date > $1.date }.prefix(limit))
     }
 
@@ -137,6 +139,8 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
             return try openrig.answerPrompt(session: s, answer: answer)
         case .herdr(let h):
             let src = try herdrSource()
+            // When M1 wires this in: make sure `read` returns the whole visible pane, so a small window
+            // can't hide the prompt's wording from this check (the OpenRig path uses rig capture --readable).
             if let phrase = PromptGuard.billingPhrase(in: try src.read(h, lines: 40)) {
                 throw KliegError("\(h) is showing a prompt about \"\(phrase)\". Klieg doesn't answer billing or usage-credit prompts; open the pane and answer it yourself.")
             }

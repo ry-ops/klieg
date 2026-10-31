@@ -22,8 +22,10 @@ public struct KliegError: Error, CustomStringConvertible, Equatable {
 /// Spots prompts that a person must answer themselves, whatever an agent or tool asks.
 public enum PromptGuard {
     /// Phrases that mean money: Klieg never answers these for anyone.
-    public static let billingPhrases = ["usage credit", "credits", "billing", "extra usage", "payment", "purchase",
-                                        "subscription", "upgrade your plan", "spend limit", "spending limit"]
+    /// A false match only means the person answers it themselves; a missed one could spend money.
+    public static let billingPhrases = ["usage credit", "credits", "billing", "extra usage", "extra-usage", "usage limit",
+                                        "rate limit", "payment", "purchase", "add funds", "subscription",
+                                        "upgrade your plan", "spend limit", "spending limit"]
 
     /// The billing phrase found near the bottom of a screen (where a live prompt is), or nil.
     public static func billingPhrase(in screen: String, lastLines: Int = 30) -> String? {
@@ -67,21 +69,50 @@ public struct OpenRigClient: Sendable {
 
     /// Every seat on the host, across all rigs. Uses the full node records, because only they carry
     /// `activityState` (needs-input and its reason) and `cwd`.
-    public func agents() throws -> [Agent] {
-        try Self.parseNodes(Data(rig(["ps", "--nodes", "-A", "--full", "--json"]).stdout.utf8), host: host)
+    ///
+    /// OpenRig reports a usage-credits screen as `permission_prompt`, so with `labelBilling` each blocked
+    /// seat's screen is read and a billing prompt is reported as `attentionReason: "billing"`.
+    public func agents(labelBilling: Bool = true) throws -> [Agent] {
+        var list = try Self.parseNodes(Data(rig(["ps", "--nodes", "-A", "--full", "--json"]).stdout.utf8), host: host)
+        guard labelBilling else { return list }
+        for i in list.indices where list[i].status == .blocked {
+            if let screen = try? capture(session: list[i].name, lines: 30), PromptGuard.billingPhrase(in: screen) != nil {
+                list[i].attentionReason = "billing"
+            }
+        }
+        return list
     }
 
-    /// Queue items across all rigs, newest first as `rig` returns them. `includeClosed` adds done and
-    /// handed-off history, which the timeline uses.
-    public func queue(includeClosed: Bool = true, limit: Int = 50) throws -> [QueueItem] {
-        var args = ["queue", "list", "-A", "--json", "--limit", String(limit)]
-        if includeClosed { args.append("-a") }
-        return try Self.parseQueue(Data(rig(args).stdout.utf8))
+    /// Open queue items (pending, in-progress, blocked) across all rigs, with their bodies so rows without a
+    /// summary still read well. Closed history isn't fetched, so it can't push old open work out of the list.
+    public func activeQueue(limit: Int = 1000) throws -> [QueueItem] {
+        try Self.parseQueue(Data(rig(["queue", "list", "-A", "--full", "--json", "--limit", String(limit)]).stdout.utf8))
+    }
+
+    /// The most recent queue items across all rigs, closed ones included, for the timeline.
+    public func queueHistory(limit: Int = 50) throws -> [QueueItem] {
+        try Self.parseQueue(Data(rig(["queue", "list", "-a", "-A", "--json", "--limit", String(limit)]).stdout.utf8))
+    }
+
+    /// What a seat's terminal shows.
+    public struct Screen: Sendable {
+        public var text: String
+        /// rig says the pane is too small to be sure a prompt on it is shown whole.
+        public var promptCutOff: Bool
+    }
+
+    /// A seat's terminal: the last `lines` lines, or with nil, 20 lines of history plus the whole visible pane.
+    /// `readable` has rig read a small pane at a readable size (the seat redraws briefly).
+    public func screen(session: String, lines: Int? = 40, readable: Bool = false) throws -> Screen {
+        var args = ["capture", session, "--json"]
+        if let lines { args += ["--lines", String(lines)] }
+        if readable { args.append("--readable") }
+        return try Self.parseScreen(Data(rig(args).stdout.utf8))
     }
 
     /// The last `lines` lines of a seat's terminal.
     public func capture(session: String, lines: Int = 40) throws -> String {
-        try Self.parseCapture(Data(rig(["capture", session, "--lines", String(lines), "--json"]).stdout.utf8))
+        try screen(session: session, lines: lines).text
     }
 
     // MARK: Actions
@@ -104,10 +135,17 @@ public struct OpenRigClient: Sendable {
     /// first and refuses billing or usage-credit prompts: only the person answers those.
     @discardableResult
     public func answerPrompt(session: String, answer: String, reason: String = "Answered by the person through Klieg") throws -> String {
-        let screen = try capture(session: session)
-        if let phrase = PromptGuard.billingPhrase(in: screen) {
+        // Read the whole visible pane at a readable size: a small window can cut off the prompt's wording,
+        // and a guard that can't see the words would let a billing prompt through.
+        let shown = try screen(session: session, lines: nil, readable: true)
+        if shown.promptCutOff {
+            throw KliegError("\(session)'s window is too small to read its whole prompt, so Klieg won't answer it. Open the seat and answer it yourself.")
+        }
+        if let phrase = PromptGuard.billingPhrase(in: shown.text) {
             throw KliegError("\(session) is showing a prompt about \"\(phrase)\". Klieg doesn't answer billing or usage-credit prompts; open the seat and answer it yourself.")
         }
+        // Known gap: the read above and the send below are separate calls. If the prompt changes in between,
+        // the keys go to the new prompt. rig audit-logs every --dangerously-interact send with the reason.
         return try rig(["send", session, answer, "--dangerously-interact", "--reason", reason]).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -214,13 +252,19 @@ public struct OpenRigClient: Sendable {
     }
 
     public static func parseCapture(_ data: Data) throws -> String {
+        try parseScreen(data).text
+    }
+
+    public static func parseScreen(_ data: Data) throws -> Screen {
         guard let o = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw KliegError("rig capture returned JSON Klieg doesn't recognize")
         }
         if o["ok"] as? Bool == false {
             throw KliegError("rig capture failed: \(o["error"] as? String ?? o["message"] as? String ?? "no reason given")")
         }
-        return o["content"] as? String ?? ""
+        // rig adds promptPane only when the seat is at a prompt in a pane smaller than 80x24.
+        let cutOff = (o["promptPane"].map { !($0 is NSNull) }) ?? false
+        return Screen(text: o["content"] as? String ?? "", promptCutOff: cutOff)
     }
 
     /// One timeline line per queue item, describing where it stands now. Ids include the state, so the

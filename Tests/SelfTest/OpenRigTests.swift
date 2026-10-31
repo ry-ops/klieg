@@ -42,7 +42,11 @@ func recordedRig() -> FakeRunner {
     f.on("ps", "--nodes", reply: openrigFixture("ps-nodes.json"))
     f.on("queue", "list", reply: openrigFixture("queue-list.json"))
     f.on("capture", "operator-agent@kernel", reply: openrigFixture("capture-credits.json"))
+    f.on("capture", "advisor-lead@kernel", reply: openrigFixture("capture-credits.json"))
     f.on("capture", "dev-build@example-pair", reply: openrigFixture("capture-permission.json"))
+    // A seat at a prompt in a pane too small for rig to be sure the prompt is shown whole.
+    f.on("capture", "small-pane@example-pair",
+         reply: #"{"ok":true,"content":"Do you want to proceed?\n ❯ 1. Yes","promptPane":{"width":60,"height":12,"hint":"try --readable"}}"#)
     f.on("send", reply: "Sent to target.")
     f.on("seat", "stop", reply: "Stopped.")
     f.on("queue", "create", reply: "Created qitem-20261031210000-abc")
@@ -111,6 +115,8 @@ func openrigTests() {
     check(PromptGuard.billingPhrase(in: credits) != nil, "spots the usage-credits prompt")
     let permission = (try? OpenRigClient.parseCapture(Data(openrigFixture("capture-permission.json").utf8))) ?? ""
     check(PromptGuard.billingPhrase(in: permission) == nil, "a permission prompt is not a billing prompt")
+    check(PromptGuard.billingPhrase(in: "You've hit your usage limit.\n /extra-usage to keep going") != nil, "spots usage-limit prompts")
+    check((try? OpenRigClient.parseScreen(Data(openrigFixture("capture-permission.json").utf8)))?.promptCutOff == false, "a normal pane is not cut off")
     check((try? OpenRigClient.parseCapture(Data(#"{"ok":false,"error":"no such session"}"#.utf8))) == nil, "failed capture throws")
 
     // Commands, locally and over ssh.
@@ -125,6 +131,12 @@ func openrigTests() {
     let client = OpenRigClient(host: nil, runner: fake.runner)
     check((try? client.agents())?.count == 4, "agents() reads rig ps --nodes -A --full --json")
     check(fake.ran("rig ps --nodes -A --full --json"), "uses the full node records")
+    check((try? client.agents())?.first { $0.name == "advisor-lead@kernel" }?.attentionReason == "billing",
+          "a blocked seat showing a usage-credits screen is labelled billing, not permission_prompt")
+    check((try? client.agents(labelBilling: false))?.first { $0.name == "advisor-lead@kernel" }?.attentionReason == "permission_prompt",
+          "without labelling, the reason is rig's own")
+    check((try? client.activeQueue())?.count == 4 && fake.ran("rig queue list -A --full --json --limit 1000"), "open work is read without closed history")
+    check(!fake.calls.contains { $0.contains("--full") && $0.contains("-a") }, "and never mixes in closed rows")
     _ = try? client.queueGoal(destination: "dev-build@x", body: "Fix the login bug\n\nDetails here.")
     check(fake.ran("queue create", "--destination dev-build@x", "--summary Fix the login bug", "--body-file -"), "queueGoal creates a qitem")
     check(fake.stdins.last == "Fix the login bug\n\nDetails here.", "queueGoal sends the body on stdin")
@@ -132,6 +144,10 @@ func openrigTests() {
     check(!fake.ran("send operator-agent@kernel"), "and types nothing into it")
     check((try? client.answerPrompt(session: "dev-build@example-pair", answer: "1")) != nil, "answers a permission prompt")
     check(fake.ran("send dev-build@example-pair 1 --dangerously-interact --reason"), "answers through rig's audited prompt override")
+    check(fake.calls.contains { $0 == ["rig", "capture", "dev-build@example-pair", "--json", "--readable"] },
+          "reads the whole pane at a readable size before answering")
+    check((try? client.answerPrompt(session: "small-pane@example-pair", answer: "1")) == nil, "refuses when the prompt may be cut off")
+    check(!fake.ran("send small-pane@example-pair"), "and types nothing into it")
     check(client.attachCommand(session: "a@b") == ["tmux", "attach", "-t", "a@b"], "attach command for a seat")
     check(remote.attachCommand(session: "a@b") == ["ssh", "-t", "ubuntu@100.67.70.121", "tmux", "attach", "-t", "a@b"], "remote attach command")
 
@@ -208,11 +224,12 @@ func mcpTests() {
     // A read tool, end to end through LiveBackend and the recorded rig output.
     let status = rpc(server, 4, "tools/call", ["name": "klieg_status", "arguments": [:]])
     check(!toolFailed(status), "klieg_status succeeds")
-    check(toolText(status).contains("! openrig:advisor-lead@kernel  permission_prompt"), "klieg_status says who needs the person")
+    check(toolText(status).contains("! openrig:advisor-lead@kernel  billing"), "klieg_status says who needs the person, and why")
     let structured = (status["result"] as? [String: Any])?["structuredContent"] as? [String: Any]
     check((structured?["agents"] as? [Any])?.count == 4, "klieg_status returns structured agents")
     let timeline = rpc(server, 5, "tools/call", ["name": "klieg_timeline", "arguments": ["limit": 2]])
     check(toolText(timeline).contains("is working on qitem-20261031195841"), "klieg_timeline shows queue activity, newest first")
+    check(fake.ran("queue list -a -A --json"), "klieg_timeline adds closed history")
     let read = rpc(server, 6, "tools/call", ["name": "klieg_read_agent", "arguments": ["agent": "openrig:operator-agent@kernel"]])
     check(toolText(read).contains("usage credits"), "klieg_read_agent returns the screen")
     check(toolFailed(rpc(server, 7, "tools/call", ["name": "klieg_read_agent", "arguments": [:]])), "missing argument is a tool error")
