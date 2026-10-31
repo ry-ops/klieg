@@ -14,9 +14,10 @@ final class TerminalTab: Identifiable {
     let view: LocalProcessTerminalView
     private let bridge = TerminalBridge()
 
-    init(directory: String?, fontSize: CGFloat, onExit: @escaping @MainActor (UUID) -> Void) {
+    init(directory: String?, fontSize: CGFloat, command: [String]? = nil, title customTitle: String? = nil,
+         onExit: @escaping @MainActor (UUID) -> Void) {
         let shell = TerminalTab.loginShell()
-        title = (shell as NSString).lastPathComponent
+        title = customTitle ?? (shell as NSString).lastPathComponent
         self.directory = directory
         view = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 300))
         view.font = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
@@ -27,17 +28,28 @@ final class TerminalTab: Identifiable {
         bridge.tab = self
         bridge.onExit = onExit
         view.processDelegate = bridge
-        view.startProcess(executable: shell, args: [], environment: TerminalTab.environment(shell: shell),
-                          execName: "-" + (shell as NSString).lastPathComponent,   // leading "-" makes it a login shell
-                          currentDirectory: directory ?? NSHomeDirectory())
+        if let command, !command.isEmpty {
+            // Run through the login shell so PATH and ssh config match the user's own terminal.
+            let line = command.map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }.joined(separator: " ")
+            view.startProcess(executable: shell, args: ["-l", "-c", line], environment: TerminalTab.environment(shell: shell),
+                              execName: (shell as NSString).lastPathComponent,
+                              currentDirectory: directory ?? NSHomeDirectory())
+        } else {
+            view.startProcess(executable: shell, args: [], environment: TerminalTab.environment(shell: shell),
+                              execName: "-" + (shell as NSString).lastPathComponent,   // leading "-" makes it a login shell
+                              currentDirectory: directory ?? NSHomeDirectory())
+        }
     }
 
     static let background = NSColor(red: 0.118, green: 0.118, blue: 0.125, alpha: 1)
 
     var label: String {
+        if pinnedTitle { return title }
         if let d = directory, !d.isEmpty { return (d as NSString).lastPathComponent }
         return title
     }
+    /// Agent tabs keep their agent's name instead of following the shell's title.
+    var pinnedTitle = false
 
     func setFontSize(_ size: CGFloat) { view.font = .monospacedSystemFont(ofSize: size, weight: .regular) }
 
@@ -137,6 +149,15 @@ final class TerminalStore {
 
     func newTab(in directory: String? = nil) {
         let tab = TerminalTab(directory: directory, fontSize: fontSize) { [weak self] id in self?.closed(id) }
+        tabs.append(tab)
+        selected = tab.id
+        visible = true
+    }
+
+    /// A tab that runs `command` (an agent's attach command), titled after the agent.
+    func newTab(running command: [String], title: String) {
+        let tab = TerminalTab(directory: nil, fontSize: fontSize, command: command, title: title) { [weak self] id in self?.closed(id) }
+        tab.pinnedTitle = true
         tabs.append(tab)
         selected = tab.id
         visible = true

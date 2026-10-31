@@ -1,0 +1,51 @@
+{
+    "id": "cli:pane:list",
+    "result": {
+        "panes": [
+            {
+                "agent_status": "unknown",
+                "cwd": "/home/ubuntu",
+                "focused": false,
+                "foreground_cwd": "/home/ubuntu",
+                "pane_id": "w1:p1",
+                "revision": 1,
+                "scroll": {
+                    "max_offset_from_bottom": 0,
+                    "offset_from_bottom": 0,
+                    "viewport_rows": 35
+                },
+                "tab_id": "w1:t1",
+                "terminal_id": "term_65f2772adb44b1",
+                "terminal_title": "ubuntu@herdr: ~",
+                "terminal_title_stripped": "ubuntu@herdr: ~",
+                "workspace_id": "w1"
+            },
+            {
+                "agent": "claude",
+                "agent_session": {
+                    "agent": "claude",
+                    "kind": "id",
+                    "source": "herdr:claude",
+                    "value": "243d4350-95b8-4441-a6e9-e3b7f7d41272"
+                },
+                "agent_status": "working",
+                "cwd": "/home/ubuntu/src/klieg",
+                "focused": true,
+                "foreground_cwd": "/home/ubuntu/src/klieg",
+                "pane_id": "w3:p1",
+                "revision": 3,
+                "scroll": {
+                    "max_offset_from_bottom": 0,
+                    "offset_from_bottom": 0,
+                    "viewport_rows": 35
+                },
+                "tab_id": "w3:t1",
+                "terminal_id": "term_65f283fdc6d503",
+                "terminal_title": "\u25d0 Klieg M1 herdr milestone",
+                "terminal_title_stripped": "Klieg M1 herdr milestone",
+                "workspace_id": "w3"
+            }
+        ],
+        "type": "pane_list"
+    }
+}
