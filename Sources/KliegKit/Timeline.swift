@@ -73,13 +73,22 @@ public enum Timeline {
         return events
     }
 
-    /// The snapshot to compare the next one against: `new`, plus the agents from `old` whose source
-    /// failed this round. Without this, every agent would "appear" again once the source recovers.
+    /// The snapshot to compare the next one against: `new`, plus what `old` had from each source that
+    /// failed this round (agents; queue items for openrig; pull requests for github). Without this,
+    /// everything from that source would "appear" again once it recovers.
     public static func carryOver(from old: Snapshot?, to new: Snapshot) -> Snapshot {
         guard let old, !new.errors.isEmpty else { return new }
         var out = new
         let have = Set(new.agents.map(\.id))
         out.agents += old.agents.filter { new.errors[$0.source.rawValue] != nil && !have.contains($0.id) }
+        if new.errors[Source.openrig.rawValue] != nil {
+            let haveQ = Set(new.queue.map(\.id))
+            out.queue += old.queue.filter { !haveQ.contains($0.id) }
+        }
+        if new.errors[Source.github.rawValue] != nil {
+            let havePR = Set(new.pullRequests.map(\.id))
+            out.pullRequests += old.pullRequests.filter { !havePR.contains($0.id) }
+        }
         return out
     }
 

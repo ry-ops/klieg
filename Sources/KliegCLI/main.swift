@@ -35,23 +35,39 @@ func printJSON<T: Encodable>(_ value: T) {
     do { print(String(decoding: try enc.encode(value), as: UTF8.self)) } catch { fail("\(error)") }
 }
 
-/// Everything Klieg can see right now. M1 reads herdr; M2 adds OpenRig and GitHub here.
+/// Everything Klieg can see right now: herdr agents, OpenRig seats and queue, and open PRs.
 func takeSnapshot(_ config: KliegConfig) -> Snapshot {
-    HerdrClient.fromConfig(config).snapshot()
+    Collector(config: config).snapshot()
 }
 
 func pad(_ s: String, _ n: Int) -> String { s.count >= n ? s : s + String(repeating: " ", count: n - s.count) }
 
-func printStatus(_ s: Snapshot) {
-    for (source, err) in s.errors.sorted(by: { $0.key < $1.key }) { print("! \(source): \(err)") }
-    if s.agents.isEmpty { print("No agents."); return }
-    let rows = s.agents.sorted { ($0.group ?? "", $0.name) < ($1.group ?? "", $1.name) }.map { a in
-        [a.name, a.kind, a.status.rawValue + (a.attentionReason.map { " (\($0))" } ?? ""), a.group ?? "-", a.id]
-    }
-    let header = ["NAME", "KIND", "STATUS", "GROUP", "ID"]
+/// Prints rows as aligned columns; the last column isn't padded.
+func printTable(_ header: [String], _ rows: [[String]]) {
     let widths = (0..<header.count).map { i in ([header] + rows).map { $0[i].count }.max() ?? 0 }
     for r in [header] + rows {
         print(r.enumerated().map { i, v in i == r.count - 1 ? v : pad(v, widths[i]) }.joined(separator: "  "))
+    }
+}
+
+func printStatus(_ s: Snapshot) {
+    for (source, err) in s.errors.sorted(by: { $0.key < $1.key }) { print("! couldn't read \(source): \(err)") }
+    if s.agents.isEmpty { print("No agents.") } else {
+        let rank: [Source: Int] = [.herdr: 0, .openrig: 1, .github: 2]
+        let rows = s.agents.sorted { (rank[$0.source] ?? 9, $0.group ?? "", $0.name) < (rank[$1.source] ?? 9, $1.group ?? "", $1.name) }.map { a in
+            [a.name, a.source.rawValue, a.kind, a.status.rawValue + (a.attentionReason.map { " (\($0))" } ?? ""), a.group ?? "-", a.id]
+        }
+        printTable(["NAME", "SOURCE", "KIND", "STATUS", "GROUP", "ID"], rows)
+    }
+    if !s.queue.isEmpty {
+        print("\nQueue (\(s.queue.count)):")
+        printTable(["ID", "STATE", "FROM", "TO", "SUMMARY"],
+                   s.queue.map { [$0.id, $0.state, $0.source, $0.destination, $0.summary ?? ""] })
+    }
+    if !s.pullRequests.isEmpty {
+        print("\nPull requests (\(s.pullRequests.count)):")
+        printTable(["PR", "CHECKS", "SIGNED", "TITLE"],
+                   s.pullRequests.map { [$0.id, $0.checks ?? "none", $0.signed.map { $0 ? "yes" : "no" } ?? "?", $0.title] })
     }
     let needy = s.needingPerson
     print("")

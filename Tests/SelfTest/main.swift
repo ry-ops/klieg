@@ -50,6 +50,7 @@ section("config") {
 // Milestone checks live in their own files so the two agent teams never edit the same file.
 section("herdr (M1)") { herdrTests() }
 section("openrig (M2)") { openrigTests() }
+section("collector (M3b)") { collectorTests() }
 
 print("klieg-selftest: \(passed) passed, \(failed.count) failed")
 for f in failed { print("  ✗ \(f)") }
