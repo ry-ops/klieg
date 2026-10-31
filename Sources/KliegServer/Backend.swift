@@ -18,11 +18,12 @@ public protocol KliegBackend: AnyObject {
     func mergePR(repo: String, number: Int) throws -> String
 }
 
-/// A source of agents other than OpenRig. herdr (milestone M1) plugs in here: give `LiveBackend.herdr` an
-/// adapter over `HerdrClient` and the herdr side of every tool lights up.
+/// A source of agents other than OpenRig: herdr, through `HerdrSource`.
 public protocol AgentSource: AnyObject {
     func agents() throws -> [Agent]
     func read(_ id: String, lines: Int) throws -> String
+    /// The whole visible screen, used to check a prompt before answering it.
+    func screen(_ id: String) throws -> String
     func prompt(_ id: String, text: String) throws -> String
     func sendKeys(_ id: String, keys: String) throws -> String
     func start(name: String, kind: String, pane: String?) throws -> String
@@ -48,17 +49,16 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
     public let config: KliegConfig
     public let openrig: OpenRigClient
     public let github: GitHubClient
-    /// herdr agents, once M1's client is wired in. nil: herdr ids are refused with a clear message.
-    public var herdr: AgentSource?
-    /// Turns two snapshots into timeline events (M1's `Timeline`). nil: the timeline shows queue activity only.
-    public var diff: ((Snapshot, Snapshot) -> [TimelineEvent])?
+    /// herdr agents. nil: herdr ids are refused with a clear message.
+    public let herdr: AgentSource?
 
     private let lock = NSLock()
     private var last: Snapshot?
     private var diffEvents: [TimelineEvent] = []
 
-    public init(config: KliegConfig, runner: @escaping CommandRunner = Runners.shell) {
+    public init(config: KliegConfig, herdr: AgentSource? = nil, runner: @escaping CommandRunner = Runners.shell) {
         self.config = config
+        self.herdr = herdr
         self.openrig = OpenRigClient(config: config, runner: runner)
         self.github = GitHubClient(runner: runner)
     }
@@ -71,8 +71,12 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
             do { s.agents += try herdr.agents() } catch { s.errors["herdr"] = "\(error)" }
         }
         lock.lock(); defer { lock.unlock() }
-        if let last, let diff { diffEvents = Array((diffEvents + diff(last, s)).suffix(500)) }
-        last = s
+        // Agent changes come from M1's Timeline. Queue activity comes from OpenRigClient.queueEvents, which
+        // also sees items close, so the queue is left out here to avoid saying everything twice.
+        var agentsOnly = s
+        agentsOnly.queue = []
+        diffEvents = Array((diffEvents + Timeline.diff(from: last, to: agentsOnly)).suffix(500))
+        last = Timeline.carryOver(from: last, to: agentsOnly)
         return s
     }
 
@@ -87,7 +91,7 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
     }
 
     func herdrSource() throws -> AgentSource {
-        guard let herdr else { throw KliegError("herdr agents aren't connected to this build of Klieg yet (they arrive with milestone M1).") }
+        guard let herdr else { throw KliegError("herdr isn't connected to this Klieg server, so herdr agents can't be reached.") }
         return herdr
     }
 
@@ -139,9 +143,7 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
             return try openrig.answerPrompt(session: s, answer: answer)
         case .herdr(let h):
             let src = try herdrSource()
-            // When M1 wires this in: make sure `read` returns the whole visible pane, so a small window
-            // can't hide the prompt's wording from this check (the OpenRig path uses rig capture --readable).
-            if let phrase = PromptGuard.billingPhrase(in: try src.read(h, lines: 40)) {
+            if let phrase = PromptGuard.billingPhrase(in: try src.screen(h)) {
                 throw KliegError("\(h) is showing a prompt about \"\(phrase)\". Klieg doesn't answer billing or usage-credit prompts; open the pane and answer it yourself.")
             }
             return try src.sendKeys(h, keys: answer)

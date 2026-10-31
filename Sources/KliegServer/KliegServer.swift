@@ -9,7 +9,8 @@ public enum KliegServer {
     /// Runs the server on stdin/stdout with the user's configuration. `KLIEG_READ_ONLY=1` refuses every act tool.
     public static func runStdio() -> Int32 {
         let config = KliegConfig.load()
-        MCPServer(backend: LiveBackend(config: config), readOnly: config.readOnly).run()
+        let backend = LiveBackend(config: config, herdr: HerdrSource(HerdrClient.fromConfig(config)))
+        MCPServer(backend: backend, readOnly: config.readOnly).run()
         return 0
     }
 }

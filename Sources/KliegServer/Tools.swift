@@ -118,7 +118,7 @@ enum KliegTools {
             ToolOutput(text: done(try b.startAgent(name: try a.string("name"), kind: try a.string("kind"), pane: a.optionalString("pane")), "Started."))
         },
         Tool(name: "klieg_stop_agent", title: "Stop an agent",
-             description: "Stop one agent. Its session ends and any turn in progress stops. Confirm with the person first.",
+             description: "Stop one OpenRig seat. Its session ends and any turn in progress stops. (herdr has no single-agent stop.) Confirm with the person first.",
              properties: ["agent": agentProp], required: ["agent"], acts: true, destructive: true) { b, a in
             ToolOutput(text: done(try b.stopAgent(try a.string("agent")), "Stopped."))
         },
@@ -134,7 +134,7 @@ enum KliegTools {
         },
         Tool(name: "klieg_answer_prompt", title: "Answer a prompt",
              description: "Answer the interactive prompt an agent is stopped at (a permission or a question) by typing keys, e.g. \"1\" or \"y\". Refuses prompts about usage credits or billing. Read the screen with klieg_read_agent and confirm with the person first.",
-             properties: ["agent": agentProp, "answer": prop("string", "Keys to type, e.g. 1, y, or a short reply.")],
+             properties: ["agent": agentProp, "answer": prop("string", "Keys to type, e.g. 1, y, or a short reply. For herdr agents, space-separated key names such as 1, esc or enter.")],
              required: ["agent", "answer"], acts: true, destructive: true) { b, a in
             ToolOutput(text: done(try b.answerPrompt(try a.string("agent"), answer: try a.string("answer")), "Answered."))
         },

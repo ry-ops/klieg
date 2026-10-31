@@ -233,8 +233,8 @@ func mcpTests() {
     let read = rpc(server, 6, "tools/call", ["name": "klieg_read_agent", "arguments": ["agent": "openrig:operator-agent@kernel"]])
     check(toolText(read).contains("usage credits"), "klieg_read_agent returns the screen")
     check(toolFailed(rpc(server, 7, "tools/call", ["name": "klieg_read_agent", "arguments": [:]])), "missing argument is a tool error")
-    check(toolText(rpc(server, 8, "tools/call", ["name": "klieg_read_agent", "arguments": ["agent": "herdr:herdr/w1:p1"]])).contains("M1"),
-          "herdr agents are refused clearly until M1 is wired in")
+    check(toolText(rpc(server, 8, "tools/call", ["name": "klieg_read_agent", "arguments": ["agent": "herdr:herdr/w1:p1"]])).contains("herdr isn't connected"),
+          "without a herdr source, herdr agents are refused clearly")
 
     // Guards.
     let answer = rpc(server, 9, "tools/call", ["name": "klieg_answer_prompt", "arguments": ["agent": "openrig:operator-agent@kernel", "answer": "1"]])
@@ -251,6 +251,50 @@ func mcpTests() {
     }
     check(roFake.calls.isEmpty, "read-only runs no commands at all")
     check(!toolFailed(rpc(ro, 200, "tools/call", ["name": "klieg_status", "arguments": [:]])), "read tools still work when read-only")
+
+    herdrSourceTests()
+}
+
+/// The herdr side of the MCP tools, through HerdrSource and M1's HerdrClient with recorded herdr JSON.
+func herdrSourceTests() {
+    let herdrDir = openrigFixtures.deletingLastPathComponent().appendingPathComponent("herdr")
+    let snapshot = (try? String(contentsOf: herdrDir.appendingPathComponent("api-snapshot.json"), encoding: .utf8)) ?? ""
+    let credits = (try? OpenRigClient.parseCapture(Data(openrigFixture("capture-credits.json").utf8))) ?? ""
+    let permission = (try? OpenRigClient.parseCapture(Data(openrigFixture("capture-permission.json").utf8))) ?? ""
+    final class Herdr: @unchecked Sendable { var calls: [String] = []; var screen = "" }
+    let h = Herdr()
+    let client = HerdrClient(target: .local(session: "work"), machine: "herdr") { args, _ in
+        let line = args.joined(separator: " ")
+        h.calls.append(line)
+        if line.contains("api snapshot") { return CommandResult(status: 0, stdout: snapshot, stderr: "") }
+        if line.contains("agent read") { return CommandResult(status: 0, stdout: line.contains("visible") ? h.screen : "pane text", stderr: "") }
+        return CommandResult(status: 0, stdout: #"{"id":"x","result":{}}"#, stderr: "")
+    }
+    let rig = recordedRig()
+    let server = MCPServer(backend: LiveBackend(config: KliegConfig(openrigHost: nil), herdr: HerdrSource(client), runner: rig.runner), readOnly: false)
+
+    let status = rpc(server, 300, "tools/call", ["name": "klieg_status", "arguments": [:]])
+    check(toolText(status).contains("herdr:herdr/w3:p1  working"), "klieg_status lists herdr agents next to OpenRig seats")
+    check(toolText(status).contains("openrig:dev-build@klieg-pair"), "and still the OpenRig seats")
+
+    let read = rpc(server, 301, "tools/call", ["name": "klieg_read_agent", "arguments": ["agent": "herdr:herdr/w3:p1", "lines": 10]])
+    check(toolText(read) == "pane text" && h.calls.contains { $0.contains("agent read w3:p1 --source recent-unwrapped --lines 10") }, "reads a herdr pane")
+
+    h.screen = credits
+    let refused = rpc(server, 302, "tools/call", ["name": "klieg_answer_prompt", "arguments": ["agent": "herdr:herdr/w3:p1", "answer": "1"]])
+    check(toolFailed(refused) && toolText(refused).contains("billing"), "refuses a billing prompt in a herdr pane")
+    check(!h.calls.contains { $0.contains("send-keys") }, "and sends no keys")
+    check(h.calls.contains { $0.contains("agent read w3:p1 --source visible") }, "checks the whole visible pane")
+
+    h.screen = permission
+    let answered = rpc(server, 303, "tools/call", ["name": "klieg_answer_prompt", "arguments": ["agent": "herdr:herdr/w3:p1", "answer": "1"]])
+    check(!toolFailed(answered) && h.calls.contains { $0.hasSuffix("agent send-keys w3:p1 1") }, "answers a herdr prompt with key names")
+
+    let stop = rpc(server, 304, "tools/call", ["name": "klieg_stop_agent", "arguments": ["agent": "herdr:herdr/w3:p1"]])
+    check(toolFailed(stop) && toolText(stop).contains("no command to stop"), "says plainly that herdr can't stop one agent")
+    let start = rpc(server, 305, "tools/call", ["name": "klieg_start_agent", "arguments": ["name": "fixer", "kind": "claude", "pane": "w2:p1"]])
+    check(!toolFailed(start) && h.calls.contains { $0.contains("agent start fixer --kind claude --pane w2:p1") }, "starts a herdr agent in a pane")
+    check(toolFailed(rpc(server, 306, "tools/call", ["name": "klieg_start_agent", "arguments": ["name": "fixer", "kind": "claude"]])), "start without a pane is refused")
 }
 
 extension Array {
