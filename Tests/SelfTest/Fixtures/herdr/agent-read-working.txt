@@ -1,0 +1,12 @@
+     $H $S api snapshot | python3 -m json.tool > $F/api-snapshot.json &&
+     $H $S agent list | python3 -m json.tool > $F/agent-list.json &&
+     $H $S agent get m1 | python3 -m json.tool > $F/agent-get.json &&
+     $H $…
+
+✽ Whirring… (2m 28s · ↓ 8.2k tokens)
+  ⎿  Tip: Use /btw to ask a quick side question without interrupting Claude's current work
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · esc to interrupt

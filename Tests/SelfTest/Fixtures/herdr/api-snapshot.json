@@ -1,0 +1,177 @@
+{
+    "id": "cli:api:snapshot",
+    "result": {
+        "snapshot": {
+            "agents": [
+                {
+                    "agent": "claude",
+                    "agent_session": {
+                        "agent": "claude",
+                        "kind": "id",
+                        "source": "herdr:claude",
+                        "value": "243d4350-95b8-4441-a6e9-e3b7f7d41272"
+                    },
+                    "agent_status": "working",
+                    "cwd": "/home/ubuntu/src/klieg",
+                    "focused": true,
+                    "foreground_cwd": "/home/ubuntu/src/klieg",
+                    "interactive_ready": true,
+                    "name": "m1",
+                    "pane_id": "w3:p1",
+                    "revision": 3,
+                    "state_change_seq": 11,
+                    "tab_id": "w3:t1",
+                    "terminal_id": "term_65f283fdc6d503",
+                    "terminal_title": "\u25d0 Klieg M1 herdr milestone",
+                    "terminal_title_stripped": "Klieg M1 herdr milestone",
+                    "workspace_id": "w3"
+                }
+            ],
+            "focused_pane_id": "w3:p1",
+            "focused_tab_id": "w3:t1",
+            "focused_workspace_id": "w3",
+            "layouts": [
+                {
+                    "area": {
+                        "height": 35,
+                        "width": 111,
+                        "x": 0,
+                        "y": 0
+                    },
+                    "focused_pane_id": "w1:p1",
+                    "panes": [
+                        {
+                            "focused": true,
+                            "pane_id": "w1:p1",
+                            "rect": {
+                                "height": 35,
+                                "width": 111,
+                                "x": 0,
+                                "y": 0
+                            }
+                        }
+                    ],
+                    "splits": [],
+                    "tab_id": "w1:t1",
+                    "workspace_id": "w1",
+                    "zoomed": false
+                },
+                {
+                    "area": {
+                        "height": 35,
+                        "width": 111,
+                        "x": 0,
+                        "y": 0
+                    },
+                    "focused_pane_id": "w3:p1",
+                    "panes": [
+                        {
+                            "focused": true,
+                            "pane_id": "w3:p1",
+                            "rect": {
+                                "height": 35,
+                                "width": 111,
+                                "x": 0,
+                                "y": 0
+                            }
+                        }
+                    ],
+                    "splits": [],
+                    "tab_id": "w3:t1",
+                    "workspace_id": "w3",
+                    "zoomed": false
+                }
+            ],
+            "panes": [
+                {
+                    "agent_status": "unknown",
+                    "cwd": "/home/ubuntu",
+                    "focused": false,
+                    "foreground_cwd": "/home/ubuntu",
+                    "pane_id": "w1:p1",
+                    "revision": 1,
+                    "scroll": {
+                        "max_offset_from_bottom": 0,
+                        "offset_from_bottom": 0,
+                        "viewport_rows": 35
+                    },
+                    "tab_id": "w1:t1",
+                    "terminal_id": "term_65f2772adb44b1",
+                    "terminal_title": "ubuntu@herdr: ~",
+                    "terminal_title_stripped": "ubuntu@herdr: ~",
+                    "workspace_id": "w1"
+                },
+                {
+                    "agent": "claude",
+                    "agent_session": {
+                        "agent": "claude",
+                        "kind": "id",
+                        "source": "herdr:claude",
+                        "value": "243d4350-95b8-4441-a6e9-e3b7f7d41272"
+                    },
+                    "agent_status": "working",
+                    "cwd": "/home/ubuntu/src/klieg",
+                    "focused": true,
+                    "foreground_cwd": "/home/ubuntu/src/klieg",
+                    "pane_id": "w3:p1",
+                    "revision": 3,
+                    "scroll": {
+                        "max_offset_from_bottom": 0,
+                        "offset_from_bottom": 0,
+                        "viewport_rows": 35
+                    },
+                    "tab_id": "w3:t1",
+                    "terminal_id": "term_65f283fdc6d503",
+                    "terminal_title": "\u25d0 Klieg M1 herdr milestone",
+                    "terminal_title_stripped": "Klieg M1 herdr milestone",
+                    "workspace_id": "w3"
+                }
+            ],
+            "protocol": 22,
+            "tabs": [
+                {
+                    "agent_status": "unknown",
+                    "focused": false,
+                    "label": "1",
+                    "number": 1,
+                    "pane_count": 1,
+                    "tab_id": "w1:t1",
+                    "workspace_id": "w1"
+                },
+                {
+                    "agent_status": "working",
+                    "focused": true,
+                    "label": "1",
+                    "number": 1,
+                    "pane_count": 1,
+                    "tab_id": "w3:t1",
+                    "workspace_id": "w3"
+                }
+            ],
+            "version": "0.9.5",
+            "workspaces": [
+                {
+                    "active_tab_id": "w1:t1",
+                    "agent_status": "unknown",
+                    "focused": false,
+                    "label": "~",
+                    "number": 1,
+                    "pane_count": 1,
+                    "tab_count": 1,
+                    "workspace_id": "w1"
+                },
+                {
+                    "active_tab_id": "w3:t1",
+                    "agent_status": "working",
+                    "focused": true,
+                    "label": "klieg-m1",
+                    "number": 2,
+                    "pane_count": 1,
+                    "tab_count": 1,
+                    "workspace_id": "w3"
+                }
+            ]
+        },
+        "type": "session_snapshot"
+    }
+}

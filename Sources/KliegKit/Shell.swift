@@ -6,6 +6,10 @@ public struct CommandResult: Sendable {
     public var stdout: String
     public var stderr: String
     public var ok: Bool { status == 0 }
+
+    public init(status: Int32, stdout: String, stderr: String) {
+        self.status = status; self.stdout = stdout; self.stderr = stderr
+    }
 }
 
 public enum ShellError: Error, CustomStringConvertible {
