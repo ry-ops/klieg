@@ -1,4 +1,4 @@
-// Draws the Klieg app icon (a searchlight on a yoke and pedestal) and writes an .iconset folder.
+// Draws the Klieg app icon (a searchlight on a yoke and pedestal, no beam) and writes an .iconset folder.
 // usage: swift scripts/make-icon.swift OUTPUT.iconset [preview.png]
 import AppKit
 
@@ -35,22 +35,9 @@ func draw(_ px: Int) -> Data {
     ctx.addPath(body); ctx.clip()
     ctx.drawLinearGradient(grad([c(0.10, 0.13, 0.22), c(0.04, 0.05, 0.09)]), start: CGPoint(x: 0, y: 910), end: CGPoint(x: 0, y: 90), options: [])
 
-    // --- The beam, thrown up and to the left from the lens.
+    // Where the lamp points (up-left). No beam is drawn: the glowing lens says it all.
     let lensC = CGPoint(x: 430, y: 560)
-    let axis = CGVector(dx: -0.62, dy: 0.785)          // where the light points (up-left)
-    let perp = CGVector(dx: axis.dy, dy: -axis.dx)
-    let beam = CGMutablePath()
-    let far: CGFloat = 900, near: CGFloat = 120, spread: CGFloat = 330
-    beam.move(to: CGPoint(x: lensC.x + perp.dx * near, y: lensC.y + perp.dy * near))
-    beam.addLine(to: CGPoint(x: lensC.x + axis.dx * far + perp.dx * spread, y: lensC.y + axis.dy * far + perp.dy * spread))
-    beam.addLine(to: CGPoint(x: lensC.x + axis.dx * far - perp.dx * spread, y: lensC.y + axis.dy * far - perp.dy * spread))
-    beam.addLine(to: CGPoint(x: lensC.x - perp.dx * near, y: lensC.y - perp.dy * near))
-    beam.closeSubpath()
-    ctx.saveGState()
-    ctx.addPath(beam); ctx.clip()
-    ctx.drawLinearGradient(grad([c(1, 0.86, 0.52, 0.62), c(1, 0.80, 0.42, 0.18), c(1, 0.78, 0.40, 0.0)], [0, 0.55, 1]),
-                           start: lensC, end: CGPoint(x: lensC.x + axis.dx * far, y: lensC.y + axis.dy * far), options: [])
-    ctx.restoreGState()
+    let axis = CGVector(dx: -0.62, dy: 0.785)
 
     // --- Pedestal: a wide round base, then a short column.
     func ellipse(_ cx: CGFloat, _ cy: CGFloat, _ rx: CGFloat, _ ry: CGFloat) -> CGRect { CGRect(x: cx - rx, y: cy - ry, width: rx * 2, height: ry * 2) }
