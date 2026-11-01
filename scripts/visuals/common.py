@@ -61,6 +61,15 @@ class Timeline:
                           f".{name}{{opacity:0;animation:{name} {self.d}s linear infinite}}")
         return name
 
+    def hold(self, t, ease=0.25):
+        """Fades in at t and stays to the end of the cycle. Unlike appear(), it is visible under
+        prefers-reduced-motion, so use it for everything that makes up the end state."""
+        name = self._name()
+        a, b = self.p(t), self.p(t + ease)
+        self.rules.append(f"@keyframes {name}{{0%,{a:.3f}%{{opacity:0}}{b:.3f}%,100%{{opacity:1}}}}"
+                          f".{name}{{animation:{name} {self.d}s linear infinite}}")
+        return name
+
     def visible_until(self, t, ease=0.25):
         """Shown from the start of the cycle and fades out at t."""
         name = self._name()

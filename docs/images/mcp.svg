@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="600" viewBox="0 0 1280 600" role="img" aria-labelledby="t d">
+<title id="t">Klieg&#x27;s MCP tools</title>
+<desc id="d">Klieg&#x27;s 12 MCP tools, four that read and eight that act, four of them marked destructive. Claude calls klieg_status on a read-only Klieg server and gets every agent&#x27;s state back, then calls klieg_prompt_agent and is refused: Klieg is read-only (KLIEG_READ_ONLY is set), so klieg_prompt_agent was refused. Nothing was changed.</desc>
+<style>
+.sans{font-family:ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Helvetica, Arial, sans-serif}
+.mono{font-family:ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace}
+@media (prefers-reduced-motion: reduce){*{animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important}}
+@keyframes m1{0%,7.143%{opacity:0}8.929%,40.000%{opacity:1}41.786%,100%{opacity:0}}.m1{opacity:0;animation:m1 14.0s linear infinite}
+@keyframes m2{0%,47.143%{opacity:0}48.929%,88.571%{opacity:1}90.357%,100%{opacity:0}}.m2{opacity:0;animation:m2 14.0s linear infinite}
+@keyframes m3{0%,7.143%{opacity:0}8.929%,100%{opacity:1}}.m3{animation:m3 14.0s linear infinite}
+@keyframes m4{0%,15.714%{opacity:0}17.500%,100%{opacity:1}}.m4{animation:m4 14.0s linear infinite}
+@keyframes m5{0%,17.143%{opacity:0}18.929%,100%{opacity:1}}.m5{animation:m5 14.0s linear infinite}
+@keyframes m6{0%,18.000%{opacity:0}19.786%,100%{opacity:1}}.m6{animation:m6 14.0s linear infinite}
+@keyframes m7{0%,18.857%{opacity:0}20.643%,100%{opacity:1}}.m7{animation:m7 14.0s linear infinite}
+@keyframes m8{0%,19.714%{opacity:0}21.500%,100%{opacity:1}}.m8{animation:m8 14.0s linear infinite}
+@keyframes m9{0%,20.571%{opacity:0}22.357%,100%{opacity:1}}.m9{animation:m9 14.0s linear infinite}
+@keyframes m10{0%,21.429%{opacity:0}23.214%,100%{opacity:1}}.m10{animation:m10 14.0s linear infinite}
+@keyframes m11{0%,22.286%{opacity:0}24.071%,100%{opacity:1}}.m11{animation:m11 14.0s linear infinite}
+@keyframes m12{0%,47.143%{opacity:0}48.929%,100%{opacity:1}}.m12{animation:m12 14.0s linear infinite}
+@keyframes m13{0%,57.143%{opacity:0}58.929%,100%{opacity:1}}.m13{animation:m13 14.0s linear infinite}
+@keyframes m14{0%,58.571%{opacity:0}60.357%,100%{opacity:1}}.m14{animation:m14 14.0s linear infinite}
+@keyframes m15{0%,60.714%{opacity:0}62.500%,100%{opacity:1}}.m15{animation:m15 14.0s linear infinite}
+@keyframes m16{0%,68.571%{opacity:0}70.357%,100%{opacity:1}}.m16{animation:m16 14.0s linear infinite}
+</style>
+<rect width="1280" height="600" rx="18" fill="#0b0d12"/><rect x="0.5" y="0.5" width="1279" height="599" rx="17.5" fill="none" stroke="#262b38"/><text x="28" y="38" class="sans" font-size="13" font-weight="600" fill="#8a92a6" letter-spacing="1.6">KLIEG&#x27;S MCP SERVER</text>
+<defs><pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#4a5163" opacity=".35"/></pattern></defs><rect width="1280" height="600" rx="18" fill="url(#dots)"/>
+<rect x="28" y="64" width="440" height="492" rx="14" fill="#12151d" stroke="#262b38"/>
+<text x="50" y="98" class="sans" font-size="17" font-weight="700" fill="#e8eaf0">12 tools</text>
+<text x="50" y="136" class="sans" font-size="12" font-weight="700" fill="#8a92a6" letter-spacing="1.4">READ</text>
+<text x="100" y="136" class="sans" font-size="12" fill="#4a5163">change nothing</text>
+<rect class="m1" x="38" y="148" width="420" height="27" rx="7" fill="#3d8cff" fill-opacity=".2" stroke="#3d8cff" stroke-opacity=".6"/>
+<text x="50" y="166" class="mono" font-size="13" fill="#e8eaf0">klieg_status</text>
+<text x="234" y="166" class="sans" font-size="12" fill="#8a92a6">Agent status</text>
+<text x="50" y="196" class="mono" font-size="13" fill="#e8eaf0">klieg_timeline</text>
+<text x="234" y="196" class="sans" font-size="12" fill="#8a92a6">Timeline</text>
+<text x="50" y="226" class="mono" font-size="13" fill="#e8eaf0">klieg_read_agent</text>
+<text x="234" y="226" class="sans" font-size="12" fill="#8a92a6">Read an agent&#x27;s screen</text>
+<text x="50" y="256" class="mono" font-size="13" fill="#e8eaf0">klieg_pull_requests</text>
+<text x="234" y="256" class="sans" font-size="12" fill="#8a92a6">Pull requests</text>
+<text x="50" y="308" class="sans" font-size="12" font-weight="700" fill="#8a92a6" letter-spacing="1.4">ACT</text>
+<text x="100" y="308" class="sans" font-size="12" fill="#4a5163">refused in read-only mode</text>
+<rect class="m2" x="38" y="320" width="420" height="27" rx="7" fill="#ff6b6b" fill-opacity=".2" stroke="#ff6b6b" stroke-opacity=".6"/>
+<text x="50" y="338" class="mono" font-size="13" fill="#e8eaf0">klieg_prompt_agent</text>
+<text x="234" y="338" class="sans" font-size="12" fill="#8a92a6">Prompt an agent</text>
+<text x="50" y="368" class="mono" font-size="13" fill="#e8eaf0">klieg_queue_goal</text>
+<text x="234" y="368" class="sans" font-size="12" fill="#8a92a6">Queue a goal</text>
+<text x="50" y="398" class="mono" font-size="13" fill="#e8eaf0">klieg_start_agent</text>
+<text x="234" y="398" class="sans" font-size="12" fill="#8a92a6">Start an agent</text>
+<text x="50" y="428" class="mono" font-size="13" fill="#e8eaf0">klieg_stop_agent</text>
+<text x="234" y="428" class="sans" font-size="12" fill="#8a92a6">Stop an agent</text>
+<rect x="376" y="414" width="78" height="19" rx="9.5" fill="#ff6b6b" fill-opacity=".14"/><text x="415" y="427.5" text-anchor="middle" class="sans" font-size="10.5" font-weight="700" fill="#ff6b6b">destructive</text>
+<text x="50" y="458" class="mono" font-size="13" fill="#e8eaf0">klieg_rig_up</text>
+<text x="234" y="458" class="sans" font-size="12" fill="#8a92a6">Bring a rig up</text>
+<text x="50" y="488" class="mono" font-size="13" fill="#e8eaf0">klieg_rig_down</text>
+<text x="234" y="488" class="sans" font-size="12" fill="#8a92a6">Take a rig down</text>
+<rect x="376" y="474" width="78" height="19" rx="9.5" fill="#ff6b6b" fill-opacity=".14"/><text x="415" y="487.5" text-anchor="middle" class="sans" font-size="10.5" font-weight="700" fill="#ff6b6b">destructive</text>
+<text x="50" y="518" class="mono" font-size="13" fill="#e8eaf0">klieg_answer_prompt</text>
+<text x="234" y="518" class="sans" font-size="12" fill="#8a92a6">Answer a prompt</text>
+<rect x="376" y="504" width="78" height="19" rx="9.5" fill="#ff6b6b" fill-opacity=".14"/><text x="415" y="517.5" text-anchor="middle" class="sans" font-size="10.5" font-weight="700" fill="#ff6b6b">destructive</text>
+<text x="50" y="548" class="mono" font-size="13" fill="#e8eaf0">klieg_merge_pr</text>
+<text x="234" y="548" class="sans" font-size="12" fill="#8a92a6">Merge a pull request</text>
+<rect x="376" y="534" width="78" height="19" rx="9.5" fill="#ff6b6b" fill-opacity=".14"/><text x="415" y="547.5" text-anchor="middle" class="sans" font-size="10.5" font-weight="700" fill="#ff6b6b">destructive</text>
+<rect x="492" y="64" width="760" height="492" rx="14" fill="#12151d" stroke="#262b38"/>
+<g><rect x="514" y="82" width="66" height="26" rx="13" fill="#ffdf9e" fill-opacity=".14" stroke="#ffdf9e" stroke-opacity=".5"/><text x="525" y="99.5" class="sans" font-size="13" font-weight="600" fill="#ffdf9e">Claude</text></g>
+<path d="M590.4 95 h34 m-7 -5 l7 5 l-7 5" fill="none" stroke="#8a92a6" stroke-width="1.6"/>
+<g><rect x="634.4" y="82" width="92" height="26" rx="13" fill="#3d8cff" fill-opacity=".14" stroke="#3d8cff" stroke-opacity=".5"/><text x="645.4" y="99.5" class="mono" font-size="13" font-weight="600" fill="#3d8cff">klieg mcp</text></g>
+<g><rect x="736.6" y="82" width="155" height="26" rx="13" fill="#ffc861" fill-opacity=".14" stroke="#ffc861" stroke-opacity=".5"/><text x="747.6" y="99.5" class="mono" font-size="13" font-weight="600" fill="#ffc861">KLIEG_READ_ONLY=1</text></g>
+<text x="1230" y="100" text-anchor="end" class="sans" font-size="12" fill="#4a5163">JSON-RPC 2.0 over stdio</text>
+<g class="m3"><rect x="512" y="126" width="720" height="36" rx="9" fill="#171b25" stroke="#262b38"/><text x="528" y="150" class="mono" font-size="13" fill="#ffdf9e">→ tools/call  klieg_status  {}</text></g>
+<g class="m4"><rect x="512" y="174" width="720" height="186" rx="9" fill="#5be37d" fill-opacity=".07" stroke="#5be37d" stroke-opacity=".45"/><text x="528" y="199" class="mono" font-size="13" font-weight="700" fill="#5be37d">← isError: false</text></g><text class="mono m5" x="528" y="224" font-size="12.5" fill="#e8eaf0" xml:space="preserve">1 need you:</text><text class="mono m6" x="528" y="244" font-size="12.5" fill="#ff9f43" xml:space="preserve">  ! openrig:operator-agent@kernel  billing</text><text class="mono m7" x="528" y="264" font-size="12.5" fill="#e8eaf0" xml:space="preserve">Agents:</text><text class="mono m8" x="528" y="284" font-size="12.5" fill="#e8eaf0" xml:space="preserve">  herdr:herdr/w3:p1  working  [klieg-m1]</text><text class="mono m9" x="528" y="304" font-size="12.5" fill="#e8eaf0" xml:space="preserve">  openrig:dev-build@klieg-pair  working  claude-opus-5-5  [klieg-pair]</text><text class="mono m10" x="528" y="324" font-size="12.5" fill="#e8eaf0" xml:space="preserve">  openrig:dev-review@klieg-pair  idle  claude-opus-5-5  [klieg-pair]</text><text class="mono m11" x="528" y="344" font-size="12.5" fill="#ff9f43" xml:space="preserve">  openrig:operator-agent@kernel  blocked  [kernel]</text>
+<g class="m12"><rect x="512" y="382" width="720" height="56" rx="9" fill="#171b25" stroke="#262b38"/><text x="528" y="406" class="mono" font-size="13" fill="#ffdf9e">→ tools/call  klieg_prompt_agent</text><text x="528" y="426" class="mono" font-size="13" fill="#8a92a6">  {&quot;agent&quot;: &quot;openrig:dev-build@klieg-pair&quot;, &quot;text&quot;: &quot;Run the self-test&quot;}</text></g>
+<g class="m13"><rect x="512" y="450" width="720" height="86" rx="9" fill="#ff6b6b" fill-opacity=".07" stroke="#ff6b6b" stroke-opacity=".45"/><text x="528" y="475" class="mono" font-size="13" font-weight="700" fill="#ff6b6b">← isError: true</text></g><text class="mono m14" x="528" y="500" font-size="12.5" fill="#ff6b6b" xml:space="preserve">Klieg is read-only (KLIEG_READ_ONLY is set), so klieg_prompt_agent</text><text class="mono m15" x="528" y="520" font-size="12.5" fill="#ff6b6b" xml:space="preserve">was refused. Nothing was changed.</text>
+<text class="sans m16" x="640" y="582" text-anchor="middle" font-size="14" fill="#8a92a6">Read tools always answer. With KLIEG_READ_ONLY=1, every act tool is refused before it runs.</text>
+</svg>
