@@ -13,6 +13,10 @@ func usage() -> Never {
       klieg version                      Print the version
       klieg config                       Print the effective configuration (JSON)
       klieg mcp                          Run the MCP server on stdio
+      klieg mcp install [--read-only] [--client claude-code|claude-desktop|all] [--dry-run]
+                                         Register Klieg's MCP server with Claude Code / Claude Desktop
+      klieg mcp uninstall [--client …] [--dry-run]   Remove that registration
+      klieg mcp status                   Where Klieg is registered, with which command
       klieg status [--json]              Agents, their state, and who needs you
       klieg timeline [--watch] [--json]  What changed since last time (--watch keeps going)
       klieg herdr prompt <agent> <text>  Send a prompt to a herdr agent
@@ -133,13 +137,64 @@ func herdrCommand(_ rest: [String]) {
     } catch { fail("\(error)") }
 }
 
+func mcpCommand(_ rest: [String]) {
+    let sub = rest[0]
+    var readOnly = false, dryRun = false
+    var clients: [MCPClient]? = nil
+    var i = 1
+    while i < rest.count {
+        switch rest[i] {
+        case "--read-only" where sub == "install": readOnly = true
+        case "--dry-run" where sub != "status": dryRun = true
+        case "--client" where sub != "status":
+            guard i + 1 < rest.count else { fail("--client needs a value: claude-code, claude-desktop or all", code: 2) }
+            i += 1
+            if rest[i] == "all" { clients = nil }
+            else if let c = MCPClient(rawValue: rest[i]) { clients = [c] }
+            else { fail("unknown client '\(rest[i])' (use claude-code, claude-desktop or all)", code: 2) }
+        default: fail("unknown option '\(rest[i])' for klieg mcp \(sub) (try: klieg help)", code: 2)
+        }
+        i += 1
+    }
+    let installer = MCPInstaller()
+    do {
+        switch sub {
+        case "status":
+            for c in MCPClient.allCases {
+                let st = installer.status(c)
+                let state: String
+                if let why = st.unavailable { state = why }
+                else if let e = st.entry {
+                    state = "registered: \(e.command) \(e.args.joined(separator: " "))"
+                        + (e.env.isEmpty ? "" : "  env: " + e.env.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))
+                } else { state = st.present ? "not registered" : "not found here" }
+                print("\(pad(c.title + ":", 16))\(state)")
+                if st.unavailable == nil && (st.present || st.entry != nil) { print("\(pad("", 16))\(st.configFile.path)") }
+            }
+        case "install":
+            let binary = MCPInstaller.currentBinary()
+            if binary.contains("/.build/") {
+                FileHandle.standardError.write(Data("klieg: note: registering a build-folder binary (\(binary)); a rebuild or clean will move it.\n".utf8))
+            }
+            for ch in try installer.install(.klieg(binary: binary, readOnly: readOnly), clients: clients, dryRun: dryRun) {
+                print("\(ch.client.title): \(ch.message)")
+            }
+        case "uninstall":
+            for ch in try installer.uninstall(clients: clients, dryRun: dryRun) { print("\(ch.client.title): \(ch.message)") }
+        default:
+            fail("unknown command 'klieg mcp \(sub)' (use install, uninstall or status)", code: 2)
+        }
+    } catch { fail("\(error)") }
+}
+
 switch args.first {
 case "version", "--version", "-v":
     print("\(KliegVersion.name) \(KliegVersion.string)")
 case "config":
     printJSON(KliegConfig.load())
 case "mcp":
-    exit(KliegServer.runStdio())
+    if args.count == 1 { exit(KliegServer.runStdio()) }
+    mcpCommand(Array(args.dropFirst()))
 case "status":
     let s = takeSnapshot(KliegConfig.load())
     if args.contains("--json") { printJSON(s) } else { printStatus(s) }
