@@ -8,3 +8,4 @@ build/
 /.mcp.json
 /.openrig/
 /CLAUDE.md
+__pycache__/

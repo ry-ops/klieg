@@ -110,8 +110,10 @@ func herdrTests() {
     check(ra?.id == "herdr:herdr/w3:p1", "remote and local give the same agent id")
     check(ra?.attachCommand == ["ssh", "-t", "herdr", "bash -lc 'herdr --session work agent attach w3:p1'"],
           "remote attach goes over ssh")
-    var hosted = remote; hosted.sshHost = "ubuntu@100.64.0.9"
-    check(hosted.attachCommand(pane: "w1:p1")[2] == "ubuntu@100.64.0.9", "ssh host can be set")
+    check(remote.attachCommand(pane: "w1:p1; rm -rf ~") == ["ssh", "-t", "herdr", #"bash -lc 'herdr --session work agent attach '\''w1:p1; rm -rf ~'\'''"#],
+          "a pane id is quoted for the far shell")
+    var hosted = remote; hosted.sshHost = "ubuntu@herdr.example"
+    check(hosted.attachCommand(pane: "w1:p1")[2] == "ubuntu@herdr.example", "ssh host can be set")
 
     // fromConfig: no saved machine with that label means we're on the herdr host.
     let noMachines: HerdrClient.Runner = { _, _ in CommandResult(status: 0, stdout: "[]", stderr: "") }
@@ -128,6 +130,8 @@ func herdrTests() {
     check((try? client.herdrTarget("herdr:herdr/w4:p2")) == "w4:p2", "Klieg id resolves to its pane")
     check((try? client.herdrTarget("reviewer")) == "reviewer", "names pass through")
     check((try? client.herdrTarget("herdr:other/w1:p1")) == nil, "another machine's agent is refused")
+    check((try? client.herdrTarget("--kind")) == nil && (try? client.herdrTarget("herdr:herdr/-x")) == nil,
+          "a name or pane that looks like an option is refused")
 
     // --- Actions build the right commands
     let act = FakeHerdr()
@@ -135,6 +139,9 @@ func herdrTests() {
     let doer = HerdrClient(target: .remote(machine: "herdr", session: "work"), machine: "herdr", runner: act.runner)
     try? doer.prompt("herdr:herdr/w4:p1", text: "run the tests")
     check(act.lastCall == ["herdr", "--machine", "herdr", "agent", "prompt", "w4:p1", "run the tests"], "prompt")
+    check((try? doer.prompt("herdr:herdr/w4:p1", text: "--help")) == nil, "a message that looks like an option is refused")
+    check((try? doer.sendKeys("reviewer", keys: ["y", "--delay"])) == nil, "so is a key")
+    check(act.lastCall.last == "run the tests", "and neither ran")
     try? doer.sendKeys("reviewer", keys: ["esc", "enter"])
     check(act.lastCall.suffix(4) == ["send-keys", "reviewer", "esc", "enter"], "send-keys")
     try? doer.start(agent: "fixer", kind: "codex", pane: "w6:p1")

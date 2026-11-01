@@ -279,12 +279,12 @@ public struct HerdrClient: Sendable {
 
     /// The herdr target (pane id or agent name) for a Klieg agent id, a pane id, or an agent name.
     public func herdrTarget(_ agent: String) throws -> String {
-        guard agent.hasPrefix("herdr:") else { return agent }
+        guard agent.hasPrefix("herdr:") else { return try RigText.positional(agent, "agent") }
         let rest = agent.dropFirst("herdr:".count)
         guard let slash = rest.firstIndex(of: "/"), rest[..<slash] == machine[...] else { throw HerdrError.notHerdrAgent(agent) }
         let pane = String(rest[rest.index(after: slash)...])
         guard !pane.isEmpty else { throw HerdrError.notHerdrAgent(agent) }
-        return pane
+        return try RigText.positional(pane, "pane")
     }
 
     /// The command that opens a pane's live terminal. herdr doesn't forward interactive attach over
@@ -294,8 +294,10 @@ public struct HerdrClient: Sendable {
         case .local(let s):
             return [herdr, "--session", s, "agent", "attach", pane]
         case .remote(let m, let s):
-            // Through a login shell, so herdr in ~/.local/bin is on PATH on the far side.
-            return ["ssh", "-t", sshHost ?? m, "bash -lc " + RigText.shellQuote("herdr --session \(s) agent attach \(pane)")]
+            // Through a login shell, so herdr in ~/.local/bin is on PATH on the far side. The inner
+            // command is quoted word by word (pane ids come from herdr's output), then once more for bash -lc.
+            let inner = [herdr, "--session", s, "agent", "attach", pane].map(RigText.shellQuote).joined(separator: " ")
+            return ["ssh", "-t", sshHost ?? m, "bash -lc " + RigText.shellQuote(inner)]
         }
     }
 
@@ -304,7 +306,7 @@ public struct HerdrClient: Sendable {
     /// Starts an agent of `kind` (claude, codex, …) named `agent` in an existing shell pane.
     public func start(agent: String, kind: String, pane: String, timeoutMs: Int? = nil) throws {
         try requireWritable()
-        var sub = ["agent", "start", agent, "--kind", kind, "--pane", try herdrTarget(pane)]
+        var sub = ["agent", "start", try RigText.positional(agent, "agent name"), "--kind", kind, "--pane", try herdrTarget(pane)]
         if let timeoutMs { sub += ["--timeout", String(timeoutMs)] }
         try call(sub, timeout: Double(timeoutMs ?? 30_000) / 1000 + 10)
     }
@@ -312,13 +314,13 @@ public struct HerdrClient: Sendable {
     /// Submits a prompt. herdr refuses with `agent_blocked` if the agent is waiting on a person.
     public func prompt(_ agent: String, text: String) throws {
         try requireWritable()
-        try call(["agent", "prompt", try herdrTarget(agent), text])
+        try call(["agent", "prompt", try herdrTarget(agent), try RigText.positional(text, "message")])
     }
 
     /// Sends key presses such as "esc", "enter", "ctrl+c".
     public func sendKeys(_ agent: String, keys: [String]) throws {
         try requireWritable()
-        try call(["agent", "send-keys", try herdrTarget(agent)] + keys)
+        try call(["agent", "send-keys", try herdrTarget(agent)] + keys.map { try RigText.positional($0, "key") })
     }
 
     /// Creates a workspace without stealing focus. Returns its id and its first pane's id.
@@ -343,6 +345,6 @@ public struct HerdrClient: Sendable {
     /// Closes a workspace and every pane in it.
     public func closeWorkspace(_ workspace: String) throws {
         try requireWritable()
-        try call(["workspace", "close", workspace])
+        try call(["workspace", "close", try RigText.positional(workspace, "workspace")])
     }
 }

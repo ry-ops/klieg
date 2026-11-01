@@ -39,11 +39,15 @@ section("shell") {
     check((try? Shell.run(["definitely-not-a-real-tool-klieg"])) == nil, "missing tool throws")
     let piped = try Shell.run(["cat"], stdin: "abc")
     check(piped.stdout == "abc", "passes stdin")
+    // A child that exits without reading a long stdin used to kill the process with SIGPIPE.
+    let gone = try Shell.run(["true"], stdin: String(repeating: "x", count: 1 << 20))
+    check(gone.ok, "stdin the child never reads is dropped, not fatal")
 }
 
 section("config") {
     let c = KliegConfig()
     check(c.herdrSession == "work", "default herdr session")
+    check(c.openrigHost == nil, "OpenRig defaults to this computer, not someone's homelab")
     check(!c.readOnly, "actions allowed by default")
 }
 
