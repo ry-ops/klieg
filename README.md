@@ -111,40 +111,34 @@ Agent ids are `herdr:<machine>/<pane>` (for example `herdr:herdr/w1:p1`) and `op
 
 ## The app
 
-The sidebar has five sections:
+The app looks like herdr, not like a Mac app: a terminal multiplexer with a sidebar, tabs, panes and a key-hint bar. [docs/design.md](docs/design.md) has the rules it follows.
 
-- **Board:** every herdr agent and OpenRig seat with its state, model and group (herdr workspace or OpenRig rig), plus the open OpenRig queue. A strip at the top shows any source Klieg couldn't read.
-- **Needs You:** every blocked agent and why, in plain words. Klieg posts a macOS notification when an agent starts needing you.
+- **Spaces** (top of the sidebar): a herdr workspace or an OpenRig rig, with its folder and branch. Spaces with a blocked agent come first, then working ones. ⌘↑ and ⌘↓ move between them.
+- **Agents** (below): every agent in the current space, with a status dot and `state · tool`. Agents that need you come first.
+- **Tabs**: `all` shows the space's agents as columns (each one's screen, read every two seconds); then one tab per agent, each a live terminal of its session; then any shells and panels. ⌘1-9 pick a tab, ⌘T opens a shell, × closes a shell or panel.
+- **Panels** open as tabs: `timeline` (⌘⇧L), `pull requests` (⌘⇧P) and `settings` (⌘,). They are also in the command palette (⌘K), which lists every agent too.
+- **Status line** under an agent's pane: folder · `git:branch` · model · state.
+- **Key-hint bar** at the bottom: the keys that work, the refresh time, `read-only` when set, and how many agents need you.
 
-  ![Needs You](docs/images/needs-you.png)
+Every action is a word, with its key in front when it has one. Right-click an agent, or use the strip above a blocked agent's pane:
 
-- **Timeline:** state changes, agents appearing and stopping, OpenRig queue items arriving and moving between pending, in progress and blocked, and pull requests opening and their checks finishing, as they happen. Items that finish and PRs that merge or close drop out of view rather than getting an event; `klieg_timeline` over MCP does show finished queue items.
-
-  ![Timeline](docs/images/timeline.png)
-
-- **Pull Requests:** open PRs in your watched repos, with check status and whether the head commit is signed.
-
-  ![Pull Requests](docs/images/pull-requests.png)
-
-- **Settings:** the herdr machine and session, the OpenRig host, the repos, the refresh interval and read-only mode. **Save** writes `~/.config/klieg/config.json`.
-
-Each agent card has these buttons:
-
-| Button | What it does |
+| Action | What it does |
 | --- | --- |
-| **Open** | Opens the agent's live session in a new tab of the built-in terminal: `tmux attach` for an OpenRig seat (over `ssh -t` when the host is remote), `herdr agent attach` for a herdr agent. |
-| **Screen** | Shows the agent's recent terminal text. |
-| **Prompt** | Sends a message into the agent's session, as if you typed it there. Not offered while the agent is blocked or stopped. |
-| **Answer** | For a blocked OpenRig seat: shows the screen, then types the answer you give. Off for `billing` prompts. **Open seat instead** takes you to the terminal. |
-| **Stop** (■) | For an OpenRig seat: asks you to confirm, then stops that seat. Its rig stays up. |
+| **open live terminal** | The agent's session in its tab: `tmux attach` for an OpenRig seat (over `ssh -t` when the host is remote), `herdr agent attach` for a herdr agent. |
+| **read screen** | The agent's recent terminal text in a box. |
+| **send prompt** | Types a message into the agent's session, as if you typed it there (`⌘↩` sends). Not offered while the agent is blocked or stopped. |
+| **answer prompt** | For a blocked OpenRig seat: shows the screen, then types the answer you give. Off for `billing` prompts. **open the seat instead** switches to its terminal. |
+| **stop seat** | For an OpenRig seat: asks you first (`y` confirms, `esc` cancels), then stops that seat. Its rig stays up. |
 
-On the Pull Requests page, **Merge** is on only when every check passed and the head commit is signed. It asks you to confirm, and the merge checks both again. In read-only mode, every action button is off.
+On the pull requests panel, **merge** is on only when every check passed and the head commit is signed. It asks you first, and the merge checks both again. In read-only mode every action is off.
 
-The menu-bar icon shows how many agents need you. Its menu lists them, and choosing one opens Needs You.
+Boxes (read, prompt, answer, confirmations and errors) are drawn over the window, never as macOS sheets or alerts. `esc` always closes one.
+
+The menu-bar icon shows how many agents need you. Its menu lists them, and choosing one opens that agent's tab.
 
 ### The terminal
 
-The terminal panel sits at the bottom of the window. Control-` shows or hides it, and Control-Shift-` opens a new tab. Each tab runs your login shell, and **Open** runs its attach command through that login shell. Your `PATH` and ssh config therefore work as they do in your own terminal.
+Every agent tab and shell tab is a real terminal (SwiftTerm) running your login shell, so your `PATH` and ssh config work as they do in your own terminal. **open live terminal** runs the agent's attach command through that shell. ⌘T opens a plain shell tab in your home folder.
 
 ## The CLI
 
@@ -287,7 +281,7 @@ defaults delete dev.ry-ops.klieg                     # terminal height and text 
 Sources/KliegKit     models, config, the herdr, OpenRig and GitHub clients, the Collector and the Timeline
 Sources/KliegServer  the MCP server and its tools
 Sources/KliegCLI     the klieg command
-Sources/KliegApp     the SwiftUI app, including the terminal (TerminalView.swift); macOS only
+Sources/KliegApp     the SwiftUI app, herdr-style (docs/design.md), with the terminal (TerminalView.swift); macOS only
 Tests/SelfTest       the self-test, with recorded herdr, rig and gh output in Fixtures/
 scripts/build-app.sh builds and installs Klieg.app
 docs/images/         screenshots

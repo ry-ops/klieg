@@ -27,6 +27,7 @@ enum TabID: Hashable {
     case overview
     case agent(String)
     case shell(UUID)
+    case panel(Panel)
 }
 
 struct ShellView: View {
@@ -44,6 +45,7 @@ struct ShellView: View {
         }
         .background(Theme.bg)
         .foregroundStyle(Theme.text)
+        .overlay { Overlays() }
         .overlay { if app.paletteOpen { CommandPalette() } }
         .onChange(of: app.monitor.lastRefresh) { _, _ in app.applyLaunchFocus() }
     }
@@ -57,7 +59,8 @@ struct Sidebar: View {
     var body: some View {
         let spaces = app.spaces
         VStack(spacing: 0) {
-            header("spaces")
+            // The window has no title bar, so the traffic lights float here.
+            header("spaces").padding(.top, 22)
             ScrollView {
                 VStack(spacing: 2) {
                     ForEach(spaces) { s in
@@ -152,9 +155,12 @@ struct MainArea: View {
                     if let t = app.shells.first(where: { $0.id == id }) {
                         TitledFrame(title: t.label, color: Theme.dim) { TerminalHost(tab: t).id(t.id) }.padding(10)
                     } else { EmptyPane() }
+                case .panel(let p):
+                    TitledFrame(title: p.title, color: Theme.dim) { PanelPane(panel: p) }.padding(10)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if case .agent(let id) = app.selectedTab, let a = app.agent(id) { PaneStatusLine(agent: a) }
         }
     }
 }
@@ -168,7 +174,8 @@ struct TabBar: View {
                 tab(s.source == .openrig ? "seats" : "all", .overview)
                 ForEach(s.agents) { a in tab(short(a.name), .agent(a.id), dot: a.status) }
             }
-            ForEach(app.shells) { t in tab(t.label, .shell(t.id), closable: t.id) }
+            ForEach(app.shells) { t in tab(t.label, .shell(t.id)) { app.closeShell(t.id) } }
+            ForEach(app.openPanels) { p in tab(p.title, .panel(p)) { app.closePanel(p) } }
             Button { app.newShell() } label: {
                 Text("+").font(Theme.mono(15)).foregroundStyle(Theme.dim).frame(width: 46, height: 36)
             }
@@ -180,13 +187,13 @@ struct TabBar: View {
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
     }
 
-    func tab(_ title: String, _ id: TabID, dot: AgentStatus? = nil, closable: UUID? = nil) -> some View {
+    func tab(_ title: String, _ id: TabID, dot: AgentStatus? = nil, close: (() -> Void)? = nil) -> some View {
         let on = app.selectedTab == id
         return HStack(spacing: 7) {
             if let dot, !on { StatusDot(status: dot, size: 7) }
             Text(title).font(Theme.mono(14, on ? .semibold : .regular)).lineLimit(1)
-            if let closable {
-                Button { app.closeShell(closable) } label: { Image(systemName: "xmark").font(.system(size: 9, weight: .bold)) }
+            if let close {
+                Button(action: close) { Text("×").font(Theme.mono(13)) }
                     .buttonStyle(.plain).foregroundStyle(on ? Theme.accentInk : Theme.dim)
             }
         }
@@ -356,6 +363,7 @@ struct KeyHintBar: View {
         let waiting = app.monitor.snapshot.needingPerson.count
         HStack(spacing: 16) {
             hint("⌘↑↓", "space"); hint("⌘1-9", "tab"); hint("⌘T", "shell"); hint("⌘K", "commands"); hint("⌘R", "refresh")
+            hint("⌘⇧L", "timeline"); hint("⌘⇧P", "prs"); hint("⌘,", "settings")
             Spacer()
             if !app.monitor.snapshot.errors.isEmpty {
                 Text("! " + app.monitor.snapshot.errors.keys.sorted().joined(separator: ", ")).foregroundStyle(Theme.color(.blocked))
@@ -392,9 +400,9 @@ struct CommandPalette: View {
 
     var commands: [PaletteCommand] {
         var c: [PaletteCommand] = [
-            .init(title: "timeline", detail: "claims, handoffs, PRs and CI, newest first") { app.panel = .timeline },
-            .init(title: "pull requests", detail: "the agents' PRs, with CI and signing") { app.panel = .pullRequests },
-            .init(title: "settings", detail: "machines, rigs, repos, read-only") { app.panel = .settings },
+            .init(title: "timeline", detail: "claims, handoffs, PRs and CI, newest first") { app.open(.timeline) },
+            .init(title: "pull requests", detail: "the agents' PRs, with CI and signing") { app.open(.pullRequests) },
+            .init(title: "settings", detail: "machines, rigs, repos, read-only") { app.open(.settings) },
             .init(title: "new shell", detail: "a local shell tab") { app.newShell() },
             .init(title: "refresh", detail: "read every source now") { Task { await app.monitor.refresh() } },
         ]
@@ -461,28 +469,27 @@ struct CommandPalette: View {
     }
 }
 
-/// Timeline, Pull Requests and Settings open as panels over the window.
-enum Panel: String, Identifiable { case timeline, pullRequests, settings; var id: String { rawValue } }
-
-struct PanelSheet: View {
+/// One line under an agent's pane, like herdr's: folder · branch · model · state.
+struct PaneStatusLine: View {
     @Environment(AppState.self) private var app
-    @Environment(\.dismiss) private var dismiss
-    let panel: Panel
+    let agent: Agent
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(panel == .pullRequests ? "pull requests" : panel.rawValue).font(Theme.mono(15, .semibold))
-                Spacer()
-                Button("close") { dismiss() }.keyboardShortcut(.cancelAction)
+        HStack(spacing: 0) {
+            Text(Spaces.tildePath(agent.cwd ?? "")).foregroundStyle(Theme.dim).lineLimit(1).truncationMode(.middle)
+            if let b = app.monitor.branches[agent.id] {
+                Text(" · ").foregroundStyle(Theme.faint)
+                Text("git:\(b)").foregroundStyle(Theme.accent)
             }
-            .padding(12)
-            Divider()
-            switch panel {
-            case .timeline: TimelineView()
-            case .pullRequests: PullRequestsView()
-            case .settings: SettingsView()
+            Text(" · ").foregroundStyle(Theme.faint)
+            Text(agent.model ?? agent.kind).foregroundStyle(Theme.model)
+            Spacer()
+            StatusDot(status: agent.status, size: 8)
+            Text(" \(agent.status.rawValue)").foregroundStyle(Theme.color(agent.status))
+            if let r = agent.attentionReason, agent.status.needsPerson {
+                Text(" · \(r.replacingOccurrences(of: "_", with: " "))").foregroundStyle(Theme.color(.blocked))
             }
         }
-        .frame(minWidth: 860, minHeight: 560)
+        .font(Theme.mono(12))
+        .padding(.horizontal, 20).frame(height: 26)
     }
 }
