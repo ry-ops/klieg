@@ -120,9 +120,13 @@ public struct OpenRigClient: Sendable {
     /// Hands a goal to a seat as a queue item. Returns what `rig` printed (it includes the qitem id).
     @discardableResult
     public func queueGoal(destination: String, body: String, source: String = "klieg@external", summary: String? = nil) throws -> String {
+        // The summary is the body's first line, so it's checked like any other value: a body starting
+        // "--dangerously-interact" must not become an option to rig.
         let line = summary ?? RigText.firstLine(body) ?? "Goal from Klieg"
-        return try rig(["queue", "create", "--source", source, "--destination", try RigText.positional(destination, "seat"),
-                        "--summary", String(line.prefix(120)), "--body-file", "-"], stdin: body).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return try rig(["queue", "create", "--source", try RigText.positional(source, "source"),
+                        "--destination", try RigText.positional(destination, "seat"),
+                        "--summary", try RigText.positional(String(line.prefix(120)), "summary (the goal's first line)"),
+                        "--body-file", "-"], stdin: body).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Types a message into a seat's terminal (rig adds its From/To envelope and refuses if the seat is at a prompt).
