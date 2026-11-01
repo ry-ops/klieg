@@ -163,6 +163,9 @@ func openrigTests() {
     check((try? client.send(session: "-x", text: "hi")) == nil, "nor can a seat")
     check((try? client.answerPrompt(session: "dev-build@example-pair", answer: "--reason")) == nil, "nor an answer")
     check((try? client.queueGoal(destination: "--all", body: "b")) == nil, "nor a destination")
+    check((try? client.queueGoal(destination: "dev-build@x", body: "--dangerously-interact")) == nil, "nor a goal's first line, which becomes --summary")
+    check((try? client.queueGoal(destination: "dev-build@x", body: "\n   -x\nrest")) == nil, "even after blank lines and spaces")
+    check((try? client.queueGoal(destination: "dev-build@x", body: "b", source: "--all")) == nil, "nor a source")
     check((try? client.up(spec: "-f")) == nil && (try? client.down(rig: "--all")) == nil && (try? client.stop(session: "-a")) == nil,
           "nor a spec, rig or seat to stop")
     check(fake.calls.count == before, "and nothing was run")
@@ -275,6 +278,14 @@ func mcpTests() {
           "klieg_pull_requests refuses a repo that isn't owner/name")
     let flag = rpc(server, 12, "tools/call", ["name": "klieg_prompt_agent", "arguments": ["agent": "openrig:dev-build@example-pair", "text": "--dangerously-interact"]])
     check(toolFailed(flag) && !fake.ran("send dev-build@example-pair"), "klieg_prompt_agent refuses a message that would be read as an option")
+    let queuedBefore = fake.calls.filter { $0.contains("create") }.count
+    let dash = rpc(server, 13, "tools/call", ["name": "klieg_queue_goal", "arguments": ["destination": "openrig:dev-build@example-pair",
+                                                                                         "body": "--dangerously-interact\nthen the goal"]])
+    check(toolFailed(dash) && toolText(dash).contains("summary"), "klieg_queue_goal refuses a body whose first line would be read as an option")
+    check(fake.calls.filter { $0.contains("create") }.count == queuedBefore, "and creates no queue item")
+    let ok = rpc(server, 14, "tools/call", ["name": "klieg_queue_goal", "arguments": ["destination": "openrig:dev-build@example-pair",
+                                                                                       "body": "Fix it - carefully\n--details below"]])
+    check(!toolFailed(ok) && fake.ran("queue create", "--summary Fix it - carefully"), "while a dash later in the body is fine")
 
     let roFake = recordedRig()
     let ro = MCPServer(backend: LiveBackend(config: KliegConfig(openrigHost: nil), runner: roFake.runner), readOnly: true)
