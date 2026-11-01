@@ -14,9 +14,11 @@ struct KliegApp: App {
 
     var body: some Scene {
         WindowGroup("Klieg", id: "main") {
-            RootView()
+            ShellView()
                 .environment(app)
-                .frame(minWidth: 900, minHeight: 520)
+                .frame(minWidth: 1000, minHeight: 600)
+                .preferredColorScheme(.dark)
+                .sheet(item: Bindable(app).panel) { p in PanelSheet(panel: p).environment(app) }
                 .onAppear { app.monitor.start() }
                 .sheet(item: Bindable(app).sheet) { sheet in
                     switch sheet {
@@ -41,9 +43,21 @@ struct KliegApp: App {
             Label(n == 0 ? "Klieg" : "\(n)", systemImage: n == 0 ? "light.beacon.min" : "light.beacon.max.fill")
         }
         .commands {
-            CommandMenu("Terminal") {
-                Button("New Terminal") { app.terminal.newTab() }.keyboardShortcut("`", modifiers: [.control, .shift])
-                Button("Toggle Terminal") { app.terminal.toggle() }.keyboardShortcut("`", modifiers: [.control])
+            CommandMenu("Klieg") {
+                Button("Commands…") { app.paletteOpen.toggle() }.keyboardShortcut("k")
+                Button("New Shell Tab") { app.newShell() }.keyboardShortcut("t")
+                Button("Refresh") { Task { await app.monitor.refresh() } }.keyboardShortcut("r")
+                Divider()
+                Button("Previous Space") { app.moveSpace(-1) }.keyboardShortcut(.upArrow, modifiers: [.command])
+                Button("Next Space") { app.moveSpace(1) }.keyboardShortcut(.downArrow, modifiers: [.command])
+                Divider()
+                ForEach(1..<10) { i in
+                    Button("Tab \(i)") { app.selectTab(number: i) }.keyboardShortcut(KeyEquivalent(Character("\(i)")))
+                }
+                Divider()
+                Button("Timeline") { app.panel = .timeline }.keyboardShortcut("l", modifiers: [.command, .shift])
+                Button("Pull Requests") { app.panel = .pullRequests }.keyboardShortcut("p", modifiers: [.command, .shift])
+                Button("Settings…") { app.panel = .settings }.keyboardShortcut(",")
             }
         }
     }
@@ -78,6 +92,74 @@ final class AppState {
     let terminal = TerminalStore()
     var sheet: AgentSheet?
     var confirm: Confirmation?
+    var panel: Panel?
+    var paletteOpen = false
+    var selectedSpaceID: String?
+    var selectedTab: TabID = .overview
+    var shells: [TerminalTab] = []
+    private var live: [String: TerminalTab] = [:]
+
+    var spaces: [SpaceItem] { SpaceItem.group(monitor.snapshot, branches: monitor.branches, config: monitor.config) }
+    var currentSpace: SpaceItem? {
+        let all = spaces
+        return all.first { $0.id == selectedSpaceID } ?? all.first
+    }
+    func agent(_ id: String) -> Agent? { monitor.snapshot.agents.first { $0.id == id } }
+
+    func select(space id: String) {
+        guard id != currentSpace?.id else { return }
+        selectedSpaceID = id
+        selectedTab = .overview
+    }
+    func moveSpace(_ delta: Int) {
+        let all = spaces
+        guard !all.isEmpty else { return }
+        let i = all.firstIndex { $0.id == currentSpace?.id } ?? 0
+        select(space: all[(i + delta + all.count) % all.count].id)
+    }
+    func selectTab(number: Int) {
+        var tabs: [TabID] = [.overview] + (currentSpace?.agents.map { TabID.agent($0.id) } ?? [])
+        tabs += shells.map { TabID.shell($0.id) }
+        if number - 1 < tabs.count { selectedTab = tabs[number - 1] }
+    }
+    /// `--agent <name>` opens that agent's tab once it first appears (handy for screenshots and demos).
+    private var launchFocusDone = false
+    func applyLaunchFocus() {
+        guard !launchFocusDone else { return }
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: "--agent"), i + 1 < args.count else { launchFocusDone = true; return }
+        if let a = monitor.snapshot.agents.first(where: { $0.name == args[i + 1] || short($0.name) == args[i + 1] }) {
+            focus(a); launchFocusDone = true
+        }
+    }
+
+    func focus(_ a: Agent) {
+        selectedSpaceID = spaces.first { $0.agents.contains { $0.id == a.id } }?.id
+        selectedTab = .agent(a.id)
+    }
+
+    /// The agent's live terminal, started on first use and kept while the app runs.
+    func liveTerminal(for a: Agent) -> TerminalTab? {
+        if let t = live[a.id] { return t }
+        guard let cmd = a.attachCommand, !cmd.isEmpty else { return nil }
+        let id = a.id
+        let t = TerminalTab(directory: nil, fontSize: 13, command: cmd, title: short(a.name)) { [weak self] _ in self?.live[id] = nil }
+        t.pinnedTitle = true
+        live[a.id] = t
+        return t
+    }
+
+    func newShell() {
+        let t = TerminalTab(directory: nil, fontSize: 13) { [weak self] id in self?.closeShell(id) }
+        shells.append(t)
+        selectedTab = .shell(t.id)
+    }
+    func closeShell(_ id: UUID) {
+        guard let i = shells.firstIndex(where: { $0.id == id }) else { return }
+        shells[i].terminate()
+        shells.remove(at: i)
+        if selectedTab == .shell(id) { selectedTab = .overview }
+    }
     var actionError: String?
 
     func perform(_ c: Confirmation) {
@@ -107,7 +189,7 @@ struct MenuBarContent: View {
         let waiting = s.needingPerson
         Text(waiting.isEmpty ? "Nobody needs you" : "\(waiting.count) need\(waiting.count == 1 ? "s" : "") you")
         ForEach(waiting) { a in
-            Button("\(a.name): \(reasonText(a))") { app.section = .needsYou; openWindow(id: "main"); NSApp.activate() }
+            Button("\(a.name): \(reasonText(a))") { app.focus(a); openWindow(id: "main"); NSApp.activate() }
         }
         Divider()
         Text("\(s.agents.filter { $0.status == .working }.count) working · \(s.agents.count) agents")
