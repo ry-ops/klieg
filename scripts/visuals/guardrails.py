@@ -2,7 +2,7 @@
 
 1. Merge only when checks passed and the head commit is signed: PR #9 waits on pending CI and
    klieg_merge_pr refuses (GitHubClient.merge's wording), then CI goes green and it merges, pinned to
-   the head commit.
+   the head commit. An illustration with #9's real checks and head: #9 itself was merged on GitHub.
 2. A billing prompt refused: operator-agent@kernel's real usage-credits screen (the recorded
    fixture, balance redacted) and OpenRigClient.answerPrompt's refusal.
 3. The app asks first: the confirmation dialogs for stopping a seat and merging a PR, with the
@@ -73,7 +73,7 @@ def merge_gate(tl):
     b.append(f'<text class="mono {tl.hold(3.3)}" x="{x + 20}" y="{y + 246}" font-size="11" fill="{AMBER}">→ klieg_merge_pr {esc('{"repo": "ry-ops/klieg", "number": 9}')}</text>')
     t = tl.hold(3.9)
     b.append(box(x + 18, y + 262, PW - 36, 82, GREEN, t))
-    b.append(lines(x + 32, y + 286, ["gh pr merge 9 --squash", "  --match-head-commit 6ff2577…", "← merged"], 12.5, GREEN, t))
+    b.append(lines(x + 32, y + 286, ["gh pr merge 9 --repo ry-ops/klieg", "  --squash --match-head-commit 6ff2577…", "← merged"], 12.5, GREEN, t))
     b.append(lines(x + 22, y + 384, ["Refused: closed, draft, no checks,", "a failed or running check, or a head", "commit GitHub hasn't verified."],
                    12.5, DIM, mono=False, step=19))
     return b
@@ -111,10 +111,11 @@ def dialog(x, y, w, title, message, confirm, cls):
     out += "".join(f'<text x="{x + w / 2}" y="{y + 54 + i * 18}" text-anchor="middle" class="sans" font-size="12" fill="{DIM}">{esc(m)}</text>'
                    for i, m in enumerate(message))
     by = y + h - 40
-    out += (f'<rect x="{x + 16}" y="{by}" width="{w - 32}" height="28" rx="7" fill="{RED}" fill-opacity=".85"/>'
-            f'<text x="{x + w / 2}" y="{by + 19}" text-anchor="middle" class="sans" font-size="12.5" font-weight="700" fill="white">{esc(confirm)}</text>')
-    out += (f'<rect x="{x + 16}" y="{by - 34}" width="{w - 32}" height="28" rx="7" fill="{EDGE}"/>'
-            f'<text x="{x + w / 2}" y="{by - 15}" text-anchor="middle" class="sans" font-size="12.5" font-weight="600" fill="{TEXT}">Cancel</text>')
+    # macOS puts the destructive button above Cancel.
+    out += (f'<rect x="{x + 16}" y="{by - 34}" width="{w - 32}" height="28" rx="7" fill="{RED}" fill-opacity=".85"/>'
+            f'<text x="{x + w / 2}" y="{by - 15}" text-anchor="middle" class="sans" font-size="12.5" font-weight="700" fill="white">{esc(confirm)}</text>')
+    out += (f'<rect x="{x + 16}" y="{by}" width="{w - 32}" height="28" rx="7" fill="{EDGE}"/>'
+            f'<text x="{x + w / 2}" y="{by + 19}" text-anchor="middle" class="sans" font-size="12.5" font-weight="600" fill="{TEXT}">Cancel</text>')
     return out + "</g>", h
 
 

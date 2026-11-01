@@ -19,8 +19,9 @@ ACT = [("klieg_prompt_agent", "Prompt an agent", False), ("klieg_queue_goal", "Q
        ("klieg_rig_up", "Bring a rig up", False), ("klieg_rig_down", "Take a rig down", True),
        ("klieg_answer_prompt", "Answer a prompt", True), ("klieg_merge_pr", "Merge a pull request", True)]
 
-# KliegTools.statusText for a snapshot from the build (2026-10-31): herdr's m1, the klieg-pair rig,
-# and the kernel operator stopped at the usage-credits prompt.
+# KliegTools.statusText for a trimmed snapshot from the build (2026-10-31): herdr's m1, the klieg-pair
+# rig, and the kernel operator stopped at the usage-credits prompt. (Two more kernel seats were stopped
+# there too, and the unifi-pair seats and a Queue: section are left out.)
 STATUS_LINES = [
     "1 need you:",
     "  ! openrig:operator-agent@kernel  billing",
