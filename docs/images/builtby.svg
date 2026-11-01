@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="t d">
+<title id="t">How Klieg was built</title>
+<desc id="d">Three builders worked on Klieg at once: the herdr agent m1, the OpenRig rig klieg-pair with dev-build building and dev-review checking, and Claude Code on the Mac. Their work lands on main in the order it merged: the M0 skeleton, then pull requests 1 to 9, ending at the v0.1.0 release on 2026-11-01, about five hours after the skeleton.</desc>
+<style>
+.sans{font-family:ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Helvetica, Arial, sans-serif}
+.mono{font-family:ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace}
+@media (prefers-reduced-motion: reduce){*{animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important}}
+@keyframes b1{0%,19.062%{opacity:0}20.000%,22.188%{opacity:1}23.125%,100%{opacity:0}}.b1{opacity:0;animation:b1 16.0s linear infinite}
+@keyframes b2{0%,22.188%{opacity:0}23.125%,27.187%{opacity:1}28.125%,100%{opacity:0}}.b2{opacity:0;animation:b2 16.0s linear infinite}
+@keyframes b3{0%,62.187%{opacity:0}63.125%,65.312%{opacity:1}66.250%,100%{opacity:0}}.b3{opacity:0;animation:b3 16.0s linear infinite}
+@keyframes b4{0%,65.312%{opacity:0}66.250%,70.312%{opacity:1}71.250%,100%{opacity:0}}.b4{opacity:0;animation:b4 16.0s linear infinite}
+@keyframes b5{0%,3.750%{opacity:0}5.312%,100%{opacity:1}}.b5{animation:b5 16.0s linear infinite}
+@keyframes b6{0%,4.375%{opacity:0}5.000%,8.438%{opacity:1}9.063%,100%{opacity:0}}.b6{opacity:0;animation:b6 16.0s linear infinite}
+@keyframes b7{0%,4.688%{transform:translate(0,0)}8.125%,100%{transform:translate(-850.00px,121.00px)}}.b7{animation:b7 16.0s ease-in-out infinite}
+@keyframes b8{0%,7.812%{opacity:0}9.375%,100%{opacity:1}}.b8{animation:b8 16.0s linear infinite}
+@keyframes b9{0%,10.938%{opacity:0}12.500%,100%{opacity:1}}.b9{animation:b9 16.0s linear infinite}
+@keyframes b10{0%,11.562%{opacity:0}12.188%,15.625%{opacity:1}16.250%,100%{opacity:0}}.b10{opacity:0;animation:b10 16.0s linear infinite}
+@keyframes b11{0%,11.875%{transform:translate(0,0)}15.313%,100%{transform:translate(-20.00px,145.00px)}}.b11{animation:b11 16.0s ease-in-out infinite}
+@keyframes b12{0%,15.000%{opacity:0}16.562%,100%{opacity:1}}.b12{animation:b12 16.0s linear infinite}
+@keyframes b13{0%,18.125%{opacity:0}19.688%,100%{opacity:1}}.b13{animation:b13 16.0s linear infinite}
+@keyframes b14{0%,18.750%{opacity:0}19.375%,22.812%{opacity:1}23.438%,100%{opacity:0}}.b14{opacity:0;animation:b14 16.0s linear infinite}
+@keyframes b15{0%,19.062%{transform:translate(0,0)}22.500%,100%{transform:translate(-914.00px,169.00px)}}.b15{animation:b15 16.0s ease-in-out infinite}
+@keyframes b16{0%,22.188%{opacity:0}23.750%,100%{opacity:1}}.b16{animation:b16 16.0s linear infinite}
+@keyframes b17{0%,25.312%{opacity:0}26.875%,100%{opacity:1}}.b17{animation:b17 16.0s linear infinite}
+@keyframes b18{0%,25.937%{opacity:0}26.562%,30.000%{opacity:1}30.625%,100%{opacity:0}}.b18{opacity:0;animation:b18 16.0s linear infinite}
+@keyframes b19{0%,26.250%{transform:translate(0,0)}29.688%,100%{transform:translate(-435.00px,193.00px)}}.b19{animation:b19 16.0s ease-in-out infinite}
+@keyframes b20{0%,29.375%{opacity:0}30.938%,100%{opacity:1}}.b20{animation:b20 16.0s linear infinite}
+@keyframes b21{0%,32.500%{opacity:0}34.062%,100%{opacity:1}}.b21{animation:b21 16.0s linear infinite}
+@keyframes b22{0%,33.125%{opacity:0}33.750%,37.187%{opacity:1}37.812%,100%{opacity:0}}.b22{opacity:0;animation:b22 16.0s linear infinite}
+@keyframes b23{0%,33.438%{transform:translate(0,0)}36.875%,100%{transform:translate(-978.00px,217.00px)}}.b23{animation:b23 16.0s ease-in-out infinite}
+@keyframes b24{0%,36.562%{opacity:0}38.125%,100%{opacity:1}}.b24{animation:b24 16.0s linear infinite}
+@keyframes b25{0%,39.688%{opacity:0}41.250%,100%{opacity:1}}.b25{animation:b25 16.0s linear infinite}
+@keyframes b26{0%,40.312%{opacity:0}40.937%,44.375%{opacity:1}45.000%,100%{opacity:0}}.b26{opacity:0;animation:b26 16.0s linear infinite}
+@keyframes b27{0%,40.625%{transform:translate(0,0)}44.062%,100%{transform:translate(-84.00px,241.00px)}}.b27{animation:b27 16.0s ease-in-out infinite}
+@keyframes b28{0%,43.750%{opacity:0}45.312%,100%{opacity:1}}.b28{animation:b28 16.0s linear infinite}
+@keyframes b29{0%,46.875%{opacity:0}48.437%,100%{opacity:1}}.b29{animation:b29 16.0s linear infinite}
+@keyframes b30{0%,47.500%{opacity:0}48.125%,51.562%{opacity:1}52.188%,100%{opacity:0}}.b30{opacity:0;animation:b30 16.0s linear infinite}
+@keyframes b31{0%,47.812%{transform:translate(0,0)}51.250%,100%{transform:translate(-1042.00px,265.00px)}}.b31{animation:b31 16.0s ease-in-out infinite}
+@keyframes b32{0%,50.937%{opacity:0}52.500%,100%{opacity:1}}.b32{animation:b32 16.0s linear infinite}
+@keyframes b33{0%,54.062%{opacity:0}55.625%,100%{opacity:1}}.b33{animation:b33 16.0s linear infinite}
+@keyframes b34{0%,54.687%{opacity:0}55.312%,58.750%{opacity:1}59.375%,100%{opacity:0}}.b34{opacity:0;animation:b34 16.0s linear infinite}
+@keyframes b35{0%,55.000%{transform:translate(0,0)}58.437%,100%{transform:translate(-148.00px,289.00px)}}.b35{animation:b35 16.0s ease-in-out infinite}
+@keyframes b36{0%,58.125%{opacity:0}59.687%,100%{opacity:1}}.b36{animation:b36 16.0s linear infinite}
+@keyframes b37{0%,61.250%{opacity:0}62.812%,100%{opacity:1}}.b37{animation:b37 16.0s linear infinite}
+@keyframes b38{0%,61.875%{opacity:0}62.500%,65.938%{opacity:1}66.562%,100%{opacity:0}}.b38{opacity:0;animation:b38 16.0s linear infinite}
+@keyframes b39{0%,62.187%{transform:translate(0,0)}65.625%,100%{transform:translate(-1106.00px,313.00px)}}.b39{animation:b39 16.0s ease-in-out infinite}
+@keyframes b40{0%,65.312%{opacity:0}66.875%,100%{opacity:1}}.b40{animation:b40 16.0s linear infinite}
+@keyframes b41{0%,68.438%{opacity:0}70.000%,100%{opacity:1}}.b41{animation:b41 16.0s linear infinite}
+@keyframes b42{0%,69.062%{opacity:0}69.687%,73.125%{opacity:1}73.750%,100%{opacity:0}}.b42{opacity:0;animation:b42 16.0s linear infinite}
+@keyframes b43{0%,69.375%{transform:translate(0,0)}72.812%,100%{transform:translate(-499.00px,337.00px)}}.b43{animation:b43 16.0s ease-in-out infinite}
+@keyframes b44{0%,72.500%{opacity:0}74.062%,100%{opacity:1}}.b44{animation:b44 16.0s linear infinite}
+@keyframes b45{0%,77.500%{opacity:0}79.062%,100%{opacity:1}}.b45{animation:b45 16.0s linear infinite}
+</style>
+<rect width="1280" height="640" rx="18" fill="#0b0d12"/><rect x="0.5" y="0.5" width="1279" height="639" rx="17.5" fill="none" stroke="#262b38"/><text x="28" y="38" class="sans" font-size="13" font-weight="600" fill="#8a92a6" letter-spacing="1.6">HOW KLIEG WAS BUILT</text>
+<defs><pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#4a5163" opacity=".35"/></pattern></defs><rect width="1280" height="640" rx="18" fill="url(#dots)"/>
+<rect x="28" y="64" width="394" height="206" rx="14" fill="#12151d" stroke="#262b38"/><rect x="28" y="78" width="4" height="40" rx="2" fill="#5ac8fa"/><text x="50" y="100" class="sans" font-size="16" font-weight="700" fill="#e8eaf0">A herdr agent</text><text x="50" y="120" class="sans" font-size="12" fill="#8a92a6">m1, in herdr pane w3:p1 on the herdr VM</text>
+<rect x="443" y="64" width="394" height="206" rx="14" fill="#12151d" stroke="#262b38"/><rect x="443" y="78" width="4" height="40" rx="2" fill="#ff6fae"/><text x="465" y="100" class="sans" font-size="16" font-weight="700" fill="#e8eaf0">An OpenRig rig: klieg-pair</text><text x="465" y="120" class="sans" font-size="12" fill="#8a92a6">a builder and a reviewer on the open-rig VM</text>
+<rect x="858" y="64" width="394" height="206" rx="14" fill="#12151d" stroke="#262b38"/><rect x="858" y="78" width="4" height="40" rx="2" fill="#ffc861"/><text x="880" y="100" class="sans" font-size="16" font-weight="700" fill="#e8eaf0">Claude Code on the Mac</text><text x="880" y="120" class="sans" font-size="12" fill="#8a92a6">on Ryan&#x27;s Mac mini: everything macOS-only</text>
+<g><rect x="50" y="142" width="38" height="26" rx="13" fill="#5ac8fa" fill-opacity=".14" stroke="#5ac8fa" stroke-opacity=".5"/><text x="61" y="159.5" class="mono" font-size="13" font-weight="600" fill="#5ac8fa">m1</text></g>
+<text x="104" y="160" class="sans" font-size="12" fill="#8a92a6">herdr · claude</text>
+<g><rect x="321.6" y="143" width="78.4" height="22" rx="11" fill="#4c9bff" fill-opacity=".18"/><circle cx="333.6" cy="154" r="3.5" fill="#4c9bff"/><text x="342.6" y="158.5" class="sans" font-size="12" font-weight="700" fill="#4c9bff">working</text></g>
+<g><rect x="465" y="142" width="92" height="26" rx="13" fill="#ff6fae" fill-opacity=".14" stroke="#ff6fae" stroke-opacity=".5"/><text x="476" y="159.5" class="mono" font-size="13" font-weight="600" fill="#ff6fae">dev-build</text></g>
+<g><rect x="703" y="142" width="100" height="26" rx="13" fill="#ff6fae" fill-opacity=".14" stroke="#ff6fae" stroke-opacity=".5"/><text x="714" y="159.5" class="mono" font-size="13" font-weight="600" fill="#ff6fae">dev-review</text></g>
+<path d="M565.2 150 H695" stroke="#4a5163" stroke-width="1.4" fill="none"/><path d="M689 146 l6 4 l-6 4" stroke="#4a5163" stroke-width="1.4" fill="none"/><path d="M565.2 162 H695" stroke="#4a5163" stroke-width="1.4" fill="none"/><path d="M571.2 158 l-6 4 l6 4" stroke="#4a5163" stroke-width="1.4" fill="none"/>
+<g class="b1"><path d="M565.2 150 H695" stroke="#ffc861" stroke-width="2.2"/><text x="630.1" y="140" text-anchor="middle" class="sans" font-size="11" font-weight="600" fill="#ffc861">check #3</text></g>
+<g class="b2"><path d="M565.2 162 H695" stroke="#5be37d" stroke-width="2.2"/><text x="630.1" y="180" text-anchor="middle" class="sans" font-size="11" font-weight="600" fill="#5be37d">approved e20ecd5</text></g>
+<g class="b3"><path d="M565.2 150 H695" stroke="#ffc861" stroke-width="2.2"/><text x="630.1" y="140" text-anchor="middle" class="sans" font-size="11" font-weight="600" fill="#ffc861">check #9</text></g>
+<g class="b4"><path d="M565.2 162 H695" stroke="#5be37d" stroke-width="2.2"/><text x="630.1" y="180" text-anchor="middle" class="sans" font-size="11" font-weight="600" fill="#5be37d">approved 39a5ccb</text></g>
+<g><rect x="880" y="142" width="103" height="26" rx="13" fill="#ffc861" fill-opacity=".14" stroke="#ffc861" stroke-opacity=".5"/><text x="891" y="159.5" class="sans" font-size="13" font-weight="600" fill="#ffc861">Claude Code</text></g>
+<text x="994" y="160" class="sans" font-size="12" fill="#8a92a6">the app, icon and screenshots</text>
+<rect x="28" y="292" width="1224" height="320" rx="14" fill="#12151d" stroke="#262b38"/>
+<text x="50" y="322" class="mono" font-size="14" font-weight="700" fill="#e8eaf0">main</text>
+<text x="98" y="322" class="sans" font-size="12" fill="#4a5163">in the order things merged, 2026-10-31 to 2026-11-01</text>
+<g class="b5"><rect x="880" y="214" width="56" height="30" rx="8" fill="#ffc861" fill-opacity=".16" stroke="#ffc861" stroke-opacity=".6"/><text x="908" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#ffc861">M0</text></g>
+<g class="b6"><circle class="b7" cx="908" cy="229" r="6" fill="#ffc861"/></g>
+<g class="b8"><circle cx="58" cy="350" r="5" fill="#ffc861"/><text x="74" y="354" class="mono" font-size="12.5" fill="#4a5163">4e8d5e5</text><text x="144" y="354" class="mono" font-size="12.5" font-weight="700" fill="#ffc861">M0</text><text x="180" y="354" class="sans" font-size="13" fill="#e8eaf0">Klieg skeleton</text></g>
+<g class="b9"><rect x="50" y="214" width="56" height="30" rx="8" fill="#5ac8fa" fill-opacity=".16" stroke="#5ac8fa" stroke-opacity=".6"/><text x="78" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#5ac8fa">#1</text></g>
+<g class="b10"><circle class="b11" cx="78" cy="229" r="6" fill="#5ac8fa"/></g>
+<line class="b12" x1="58" y1="350" x2="58" y2="374" stroke="#262b38" stroke-width="2"/>
+<g class="b12"><circle cx="58" cy="374" r="5" fill="#5ac8fa"/><text x="74" y="378" class="mono" font-size="12.5" fill="#4a5163">8bbf864</text><text x="144" y="378" class="mono" font-size="12.5" font-weight="700" fill="#5ac8fa">#1</text><text x="180" y="378" class="sans" font-size="13" fill="#e8eaf0">M1: herdr client, timeline and CLI</text></g>
+<g class="b13"><rect x="944" y="214" width="56" height="30" rx="8" fill="#ffc861" fill-opacity=".16" stroke="#ffc861" stroke-opacity=".6"/><text x="972" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#ffc861">#2</text></g>
+<g class="b14"><circle class="b15" cx="972" cy="229" r="6" fill="#ffc861"/></g>
+<line class="b16" x1="58" y1="374" x2="58" y2="398" stroke="#262b38" stroke-width="2"/>
+<g class="b16"><circle cx="58" cy="398" r="5" fill="#ffc861"/><text x="74" y="402" class="mono" font-size="12.5" fill="#4a5163">558911e</text><text x="144" y="402" class="mono" font-size="12.5" font-weight="700" fill="#ffc861">#2</text><text x="180" y="402" class="sans" font-size="13" fill="#e8eaf0">M3 (part 1): live Board, Needs You and Timeline</text></g>
+<g class="b17"><rect x="465" y="214" width="56" height="30" rx="8" fill="#ff6fae" fill-opacity=".16" stroke="#ff6fae" stroke-opacity=".6"/><text x="493" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#ff6fae">#3</text></g>
+<g class="b18"><circle class="b19" cx="493" cy="229" r="6" fill="#ff6fae"/></g>
+<line class="b20" x1="58" y1="398" x2="58" y2="422" stroke="#262b38" stroke-width="2"/>
+<g class="b20"><circle cx="58" cy="422" r="5" fill="#ff6fae"/><text x="74" y="426" class="mono" font-size="12.5" fill="#4a5163">422dbb6</text><text x="144" y="426" class="mono" font-size="12.5" font-weight="700" fill="#ff6fae">#3</text><text x="180" y="426" class="sans" font-size="13" fill="#e8eaf0">M2: OpenRig client, GitHub client and the MCP server</text></g>
+<g class="b21"><rect x="1008" y="214" width="56" height="30" rx="8" fill="#ffc861" fill-opacity=".16" stroke="#ffc861" stroke-opacity=".6"/><text x="1036" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#ffc861">#4</text></g>
+<g class="b22"><circle class="b23" cx="1036" cy="229" r="6" fill="#ffc861"/></g>
+<line class="b24" x1="58" y1="422" x2="58" y2="446" stroke="#262b38" stroke-width="2"/>
+<g class="b24"><circle cx="58" cy="446" r="5" fill="#ffc861"/><text x="74" y="450" class="mono" font-size="12.5" fill="#4a5163">62732f1</text><text x="144" y="450" class="mono" font-size="12.5" font-weight="700" fill="#ffc861">#4</text><text x="180" y="450" class="sans" font-size="13" fill="#e8eaf0">M3 (part 2): OpenRig, PRs, Settings and actions in the app</text></g>
+<g class="b25"><rect x="114" y="214" width="56" height="30" rx="8" fill="#5ac8fa" fill-opacity=".16" stroke="#5ac8fa" stroke-opacity=".6"/><text x="142" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#5ac8fa">#5</text></g>
+<g class="b26"><circle class="b27" cx="142" cy="229" r="6" fill="#5ac8fa"/></g>
+<line class="b28" x1="58" y1="446" x2="58" y2="470" stroke="#262b38" stroke-width="2"/>
+<g class="b28"><circle cx="58" cy="470" r="5" fill="#5ac8fa"/><text x="74" y="474" class="mono" font-size="12.5" fill="#4a5163">123555f</text><text x="144" y="474" class="mono" font-size="12.5" font-weight="700" fill="#5ac8fa">#5</text><text x="180" y="474" class="sans" font-size="13" fill="#e8eaf0">M3b: Collector, and herdr agents behind the MCP tools</text></g>
+<g class="b29"><rect x="1072" y="214" width="56" height="30" rx="8" fill="#ffc861" fill-opacity=".16" stroke="#ffc861" stroke-opacity=".6"/><text x="1100" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#ffc861">#6</text></g>
+<g class="b30"><circle class="b31" cx="1100" cy="229" r="6" fill="#ffc861"/></g>
+<line class="b32" x1="58" y1="470" x2="58" y2="494" stroke="#262b38" stroke-width="2"/>
+<g class="b32"><circle cx="58" cy="494" r="5" fill="#ffc861"/><text x="74" y="498" class="mono" font-size="12.5" fill="#4a5163">6a890d4</text><text x="144" y="498" class="mono" font-size="12.5" font-weight="700" fill="#ffc861">#6</text><text x="180" y="498" class="sans" font-size="13" fill="#e8eaf0">App: read through the shared Collector</text></g>
+<g class="b33"><rect x="178" y="214" width="56" height="30" rx="8" fill="#5ac8fa" fill-opacity=".16" stroke="#5ac8fa" stroke-opacity=".6"/><text x="206" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#5ac8fa">#7</text></g>
+<g class="b34"><circle class="b35" cx="206" cy="229" r="6" fill="#5ac8fa"/></g>
+<line class="b36" x1="58" y1="494" x2="58" y2="518" stroke="#262b38" stroke-width="2"/>
+<g class="b36"><circle cx="58" cy="518" r="5" fill="#5ac8fa"/><text x="74" y="522" class="mono" font-size="12.5" fill="#4a5163">5f52300</text><text x="144" y="522" class="mono" font-size="12.5" font-weight="700" fill="#5ac8fa">#7</text><text x="180" y="522" class="sans" font-size="13" fill="#e8eaf0">M4: klieg mcp install, uninstall and status</text></g>
+<g class="b37"><rect x="1136" y="214" width="56" height="30" rx="8" fill="#ffc861" fill-opacity=".16" stroke="#ffc861" stroke-opacity=".6"/><text x="1164" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#ffc861">#8</text></g>
+<g class="b38"><circle class="b39" cx="1164" cy="229" r="6" fill="#ffc861"/></g>
+<line class="b40" x1="58" y1="518" x2="58" y2="542" stroke="#262b38" stroke-width="2"/>
+<g class="b40"><circle cx="58" cy="542" r="5" fill="#ffc861"/><text x="74" y="546" class="mono" font-size="12.5" fill="#4a5163">034d542</text><text x="144" y="546" class="mono" font-size="12.5" font-weight="700" fill="#ffc861">#8</text><text x="180" y="546" class="sans" font-size="13" fill="#e8eaf0">M4: app icon and screenshots</text></g>
+<g class="b41"><rect x="529" y="214" width="56" height="30" rx="8" fill="#ff6fae" fill-opacity=".16" stroke="#ff6fae" stroke-opacity=".6"/><text x="557" y="234" text-anchor="middle" class="mono" font-size="13.5" font-weight="700" fill="#ff6fae">#9</text></g>
+<g class="b42"><circle class="b43" cx="557" cy="229" r="6" fill="#ff6fae"/></g>
+<line class="b44" x1="58" y1="542" x2="58" y2="566" stroke="#262b38" stroke-width="2"/>
+<g class="b44"><circle cx="58" cy="566" r="5" fill="#ff6fae"/><text x="74" y="570" class="mono" font-size="12.5" fill="#4a5163">ce05f14</text><text x="144" y="570" class="mono" font-size="12.5" font-weight="700" fill="#ff6fae">#9</text><text x="180" y="570" class="sans" font-size="13" fill="#e8eaf0">M4: README for 0.1.0</text></g>
+<g class="b45"><rect x="760" y="336" width="460" height="128" rx="12" fill="#171b25" stroke="#ffc861" stroke-opacity=".6"/><text x="782" y="370" class="mono" font-size="26" font-weight="800" fill="#ffc861">v0.1.0</text><text x="900" y="368" class="sans" font-size="15" font-weight="700" fill="#e8eaf0">Klieg 0.1.0</text><text x="782" y="400" class="sans" font-size="12.5" fill="#8a92a6">Tagged at ce05f14 (#9), released 2026-11-01 00:58 UTC,</text><text x="782" y="420" class="sans" font-size="12.5" fill="#8a92a6">about five hours after the skeleton (19:49 UTC the day before).</text><text x="782" y="446" class="sans" font-size="12.5" fill="#ffdf9e">3 builders · 9 pull requests</text></g>
+<line class="b45" x1="358" y1="566" x2="752" y2="566" stroke="#ffc861" stroke-opacity=".5" stroke-dasharray="3 5"/>
+<circle cx="768" cy="498" r="5" fill="#5ac8fa"/><text x="782" y="502" class="sans" font-size="12.5" fill="#e8eaf0">herdr agent</text><text x="880" y="502" class="mono" font-size="12" fill="#8a92a6">#1 #5 #7</text>
+<circle cx="768" cy="520" r="5" fill="#ff6fae"/><text x="782" y="524" class="sans" font-size="12.5" fill="#e8eaf0">klieg-pair</text><text x="880" y="524" class="mono" font-size="12" fill="#8a92a6">#3 #9</text>
+<circle cx="768" cy="542" r="5" fill="#ffc861"/><text x="782" y="546" class="sans" font-size="12.5" fill="#e8eaf0">the Mac</text><text x="880" y="546" class="mono" font-size="12" fill="#8a92a6">M0 #2 #4 #6 #8</text>
+<text x="760" y="586" class="sans" font-size="12.5" fill="#8a92a6">Klieg watched itself being built: these agents were on its own Board.</text>
+</svg>
