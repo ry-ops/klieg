@@ -166,16 +166,19 @@ klieg herdr read <agent> [lines]   Print a herdr agent's recent terminal text (d
 
 `klieg mcp` is a Model Context Protocol server over stdio: plain JSON-RPC 2.0, one request per line, with no SDK. It uses the same settings as the app and the CLI.
 
-Register it with Claude Code yourself for now:
+Register it with Claude Code and Claude Desktop in one step:
 
 ```bash
-claude mcp add --scope user klieg -- ~/.local/bin/klieg mcp
-claude mcp add --scope user klieg -e KLIEG_READ_ONLY=1 -- ~/.local/bin/klieg mcp   # or read-only
+klieg mcp install --read-only   # Claude can see everything; every action is refused
+klieg mcp install               # Claude can also prompt, queue, start/stop, answer and merge
+klieg mcp status                # where klieg is registered, with which command and env
+klieg mcp uninstall             # remove only the klieg entry
 ```
 
-### Coming with 0.1.0: `klieg mcp install`
-
-`klieg mcp install`, `klieg mcp uninstall` and `klieg mcp status` will register the server with Claude for you, remove the registration and show whether it's registered. They're being built now and aren't in this build yet.
+- `--client claude-code|claude-desktop|all` picks which clients (default: every client found on this machine). `--dry-run` prints what would change.
+- Claude Code is registered with `claude mcp add --scope user` when the `claude` CLI is installed, otherwise by editing `mcpServers` in `~/.claude.json`. Claude Desktop is registered in `~/Library/Application Support/Claude/claude_desktop_config.json`; restart Claude Desktop afterwards.
+- Config files are edited atomically and only the `klieg` entry changes. A file that isn't valid JSON is left alone.
+- Install from the installed app (`~/.local/bin/klieg`), not from a `.build/` folder: a rebuild or clean moves that binary.
 
 ### Tools
 
