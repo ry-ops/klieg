@@ -102,6 +102,7 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
     }
 
     public func pullRequests(repo: String?) throws -> [PullRequest] {
+        if let repo { try GitHubClient.checkRepo(repo) }
         let repos = repo.map { [$0] } ?? config.repos
         if repos.isEmpty { throw KliegError("No repos to watch. Pass repo, or list repos in \(KliegConfig.file.path).") }
         return try repos.flatMap { try github.pullRequests(repo: $0) }
@@ -151,5 +152,12 @@ public final class LiveBackend: KliegBackend, @unchecked Sendable {
         }
     }
 
-    public func mergePR(repo: String, number: Int) throws -> String { try github.merge(repo: repo, number: number) }
+    /// Merges only in a watched repo: the model's `repo` argument can't reach every repo `gh` is signed in to.
+    public func mergePR(repo: String, number: Int) throws -> String {
+        try GitHubClient.checkRepo(repo)
+        guard config.repos.contains(where: { $0.lowercased() == repo.lowercased() }) else {
+            throw KliegError("\(repo) isn't a watched repo, so Klieg won't merge in it. Add it to repos in \(KliegConfig.file.path).")
+        }
+        return try github.merge(repo: repo, number: number)
+    }
 }

@@ -99,7 +99,7 @@ func openrigTests() {
     check(compact.count == 2, "reads the compact {entries:[…]} shape")
     check(compact.first?.status == .blocked && compact.first?.attentionReason == "stale_runtime_hook", "compact: needsAttention is blocked")
     check(compact.last?.model == "claude-opus-5-5", "compact: model from the observation array")
-    check(compact.last?.attachCommand == ["ssh", "-t", "ubuntu@rig-host", "tmux", "attach", "-t", "dev-build@klieg-pair"], "remote attach goes over ssh -t")
+    check(compact.last?.attachCommand == ["ssh", "-t", "ubuntu@rig-host", "tmux attach -t dev-build@klieg-pair"], "remote attach goes over ssh -t, quoted for the far shell")
 
     // Queue items.
     let queue = (try? OpenRigClient.parseQueue(Data(openrigFixture("queue-list.json").utf8))) ?? []
@@ -126,8 +126,8 @@ func openrigTests() {
     // Commands, locally and over ssh.
     let local = OpenRigClient(host: nil)
     check(local.command(["ps", "--nodes"]) == ["rig", "ps", "--nodes"], "local runs rig directly")
-    let remote = OpenRigClient(host: "ubuntu@100.67.70.121")
-    check(remote.command(["send", "dev@r", "it's done; $HOME"]) == ["ssh", "-o", "BatchMode=yes", "ubuntu@100.67.70.121", #"rig send dev@r 'it'\''s done; $HOME'"#],
+    let remote = OpenRigClient(host: "ubuntu@rig.example")
+    check(remote.command(["send", "dev@r", "it's done; $HOME"]) == ["ssh", "-o", "BatchMode=yes", "ubuntu@rig.example", #"rig send dev@r 'it'\''s done; $HOME'"#],
           "remote quotes every argument for the far shell")
 
     // Actions run the right rig commands.
@@ -153,7 +153,19 @@ func openrigTests() {
     check((try? client.answerPrompt(session: "small-pane@example-pair", answer: "1")) == nil, "refuses when the prompt may be cut off")
     check(!fake.ran("send small-pane@example-pair"), "and types nothing into it")
     check(client.attachCommand(session: "a@b") == ["tmux", "attach", "-t", "a@b"], "attach command for a seat")
-    check(remote.attachCommand(session: "a@b") == ["ssh", "-t", "ubuntu@100.67.70.121", "tmux", "attach", "-t", "a@b"], "remote attach command")
+    check(remote.attachCommand(session: "a@b") == ["ssh", "-t", "ubuntu@rig.example", "tmux attach -t a@b"], "remote attach is one quoted string for the far shell")
+    check(remote.attachCommand(session: "a b;id") == ["ssh", "-t", "ubuntu@rig.example", "tmux attach -t 'a b;id'"], "and its words are quoted")
+
+    // Positional arguments that look like options are refused before anything runs: a prompt-injected
+    // model can't turn a message into a flag such as --dangerously-interact.
+    let before = fake.calls.count
+    check((try? client.send(session: "dev-build@example-pair", text: "--dangerously-interact")) == nil, "a message can't start with -")
+    check((try? client.send(session: "-x", text: "hi")) == nil, "nor can a seat")
+    check((try? client.answerPrompt(session: "dev-build@example-pair", answer: "--reason")) == nil, "nor an answer")
+    check((try? client.queueGoal(destination: "--all", body: "b")) == nil, "nor a destination")
+    check((try? client.up(spec: "-f")) == nil && (try? client.down(rig: "--all")) == nil && (try? client.stop(session: "-a")) == nil,
+          "nor a spec, rig or seat to stop")
+    check(fake.calls.count == before, "and nothing was run")
 
     githubTests()
     mcpTests()
@@ -176,6 +188,11 @@ func githubTests() {
     let gh = GitHubClient(runner: f.runner)
     let prs = (try? gh.pullRequests(repo: "ry-ops/unifi-mcp-server")) ?? []
     check(prs.count == 4 && prs.first?.signed == true, "lists PRs with signature status")
+    for bad in ["../../orgs/x", "ry-ops", "ry-ops/a/b", "o/r?per_page=1", "-o/r", "", "./x"] {
+        check((try? gh.pullRequests(repo: bad)) == nil, "\"\(bad)\" isn't a repo name")
+    }
+    check(!f.ran("orgs/x"), "and a bad repo never reaches gh")
+    check((try? gh.verified(repo: "o/r", sha: "abc --jq .x")) == nil, "a sha must be hex")
 
     // Merge: only green and verified.
     let green = FakeRunner()
@@ -183,6 +200,13 @@ func githubTests() {
     check((try? GitHubClient(runner: green.runner).merge(repo: "ry-ops/unifi-mcp-server", number: 56)) != nil, "merges a green, verified PR")
     check(green.ran("pr merge 56 --repo ry-ops/unifi-mcp-server --squash --match-head-commit 52b1015978435a40a65faadd135308ee34f11c20"),
           "squash merge pinned to the checked head commit")
+
+    // The backend (what the MCP tools call) merges only in watched repos.
+    let watched = LiveBackend(config: KliegConfig(openrigHost: nil, repos: ["ry-ops/unifi-mcp-server"]), runner: green.runner)
+    check((try? watched.mergePR(repo: "ry-ops/unifi-mcp-server", number: 56)) != nil, "the backend merges in a watched repo")
+    let merges = green.calls.filter { $0.contains("merge") }.count
+    check((try? watched.mergePR(repo: "ry-ops/other", number: 1)) == nil, "but refuses one that isn't watched")
+    check(green.calls.filter { $0.contains("merge") }.count == merges && !green.ran("ry-ops/other"), "and asks gh nothing about it")
 
     let red = FakeRunner()
     red.on("pr view 58", reply: view(2)); red.on("api", reply: verified); red.on("pr merge", reply: "")
@@ -244,6 +268,13 @@ func mcpTests() {
     let answer = rpc(server, 9, "tools/call", ["name": "klieg_answer_prompt", "arguments": ["agent": "openrig:operator-agent@kernel", "answer": "1"]])
     check(toolFailed(answer) && toolText(answer).contains("billing"), "klieg_answer_prompt refuses a usage-credits prompt")
     check(!fake.ran("send operator-agent@kernel"), "and types nothing")
+    let merge = rpc(server, 10, "tools/call", ["name": "klieg_merge_pr", "arguments": ["repo": "someone/else", "number": 1]])
+    check(toolFailed(merge) && toolText(merge).contains("watched"), "klieg_merge_pr refuses a repo that isn't watched")
+    check(!fake.ran("pr view") && !fake.ran("pr merge"), "and asks gh nothing")
+    check(toolFailed(rpc(server, 11, "tools/call", ["name": "klieg_pull_requests", "arguments": ["repo": "../orgs/x"]])),
+          "klieg_pull_requests refuses a repo that isn't owner/name")
+    let flag = rpc(server, 12, "tools/call", ["name": "klieg_prompt_agent", "arguments": ["agent": "openrig:dev-build@example-pair", "text": "--dangerously-interact"]])
+    check(toolFailed(flag) && !fake.ran("send dev-build@example-pair"), "klieg_prompt_agent refuses a message that would be read as an option")
 
     let roFake = recordedRig()
     let ro = MCPServer(backend: LiveBackend(config: KliegConfig(openrigHost: nil), runner: roFake.runner), readOnly: true)

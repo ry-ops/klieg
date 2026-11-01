@@ -45,23 +45,32 @@ public enum Shell {
         return nil
     }
 
+    /// A child that exits before reading its stdin would otherwise kill Klieg with SIGPIPE
+    /// (for example `ssh` refusing to log in while a long queue-goal body is being written).
+    private static let ignoreSIGPIPE: Void = { _ = signal(SIGPIPE, SIG_IGN); return () }()
+
     /// Runs `args[0]` with the rest as arguments, no shell involved. Throws on timeout or a missing tool;
     /// a non-zero exit is returned, not thrown, unless `check` is true.
     @discardableResult
     public static func run(_ args: [String], stdin: String? = nil, timeout: Double = 20, check: Bool = false) throws -> CommandResult {
         guard let first = args.first, let exe = which(first) else { throw ShellError.notFound(args.first ?? "") }
+        _ = ignoreSIGPIPE
         let p = Process()
         p.executableURL = URL(fileURLWithPath: exe)
         p.arguments = Array(args.dropFirst())
         let out = Pipe(), err = Pipe(), inp = Pipe()
         p.standardOutput = out; p.standardError = err; p.standardInput = inp
         try p.run()
-        if let stdin { inp.fileHandleForWriting.write(Data(stdin.utf8)) }
-        try? inp.fileHandleForWriting.close()
 
-        // Read both pipes concurrently so a chatty command can't fill a pipe and stall.
+        // Write stdin and read both pipes concurrently, so a chatty command or a long stdin can't
+        // fill a pipe and stall. A write the child never reads fails quietly.
         let outBox = DataBox(), errBox = DataBox()
         let group = DispatchGroup()
+        group.enter(); DispatchQueue.global().async {
+            if let stdin { try? inp.fileHandleForWriting.write(contentsOf: Data(stdin.utf8)) }
+            try? inp.fileHandleForWriting.close()
+            group.leave()
+        }
         group.enter(); DispatchQueue.global().async { outBox.set(out.fileHandleForReading.readDataToEndOfFile()); group.leave() }
         group.enter(); DispatchQueue.global().async { errBox.set(err.fileHandleForReading.readDataToEndOfFile()); group.leave() }
         if group.wait(timeout: .now() + timeout) == .timedOut {

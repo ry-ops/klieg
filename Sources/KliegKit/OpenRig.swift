@@ -104,7 +104,7 @@ public struct OpenRigClient: Sendable {
     /// A seat's terminal: the last `lines` lines, or with nil, 20 lines of history plus the whole visible pane.
     /// `readable` has rig read a small pane at a readable size (the seat redraws briefly).
     public func screen(session: String, lines: Int? = 40, readable: Bool = false) throws -> Screen {
-        var args = ["capture", session, "--json"]
+        var args = ["capture", try RigText.positional(session, "seat"), "--json"]
         if let lines { args += ["--lines", String(lines)] }
         if readable { args.append("--readable") }
         return try Self.parseScreen(Data(rig(args).stdout.utf8))
@@ -121,20 +121,22 @@ public struct OpenRigClient: Sendable {
     @discardableResult
     public func queueGoal(destination: String, body: String, source: String = "klieg@external", summary: String? = nil) throws -> String {
         let line = summary ?? RigText.firstLine(body) ?? "Goal from Klieg"
-        return try rig(["queue", "create", "--source", source, "--destination", destination,
+        return try rig(["queue", "create", "--source", source, "--destination", try RigText.positional(destination, "seat"),
                         "--summary", String(line.prefix(120)), "--body-file", "-"], stdin: body).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Types a message into a seat's terminal (rig adds its From/To envelope and refuses if the seat is at a prompt).
     @discardableResult
     public func send(session: String, text: String) throws -> String {
-        try rig(["send", session, text]).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        try rig(["send", try RigText.positional(session, "seat"), try RigText.positional(text, "message")])
+            .stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Answers the interactive prompt a seat is stopped at, by typing `answer` as keystrokes. Reads the screen
     /// first and refuses billing or usage-credit prompts: only the person answers those.
     @discardableResult
     public func answerPrompt(session: String, answer: String, reason: String = "Answered by the person through Klieg") throws -> String {
+        let session = try RigText.positional(session, "seat"), answer = try RigText.positional(answer, "answer")
         // Read the whole visible pane at a readable size: a small window can cut off the prompt's wording,
         // and a guard that can't see the words would let a billing prompt through.
         let shown = try screen(session: session, lines: nil, readable: true)
@@ -152,19 +154,19 @@ public struct OpenRigClient: Sendable {
     /// Stops one live seat (kills only its tmux session).
     @discardableResult
     public func stop(session: String) throws -> String {
-        try rig(["seat", "stop", session]).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        try rig(["seat", "stop", try RigText.positional(session, "seat")]).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Launches a rig from a spec path, library name or bundle link.
     @discardableResult
     public func up(spec: String) throws -> String {
-        try rig(["up", spec], timeout: 300).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        try rig(["up", try RigText.positional(spec, "spec")], timeout: 300).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Stops every seat in a rig. OpenRig snapshots it first, so `rig up <rig> --existing` can bring it back.
     @discardableResult
     public func down(rig name: String) throws -> String {
-        try rig(["down", name], timeout: 120).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        try rig(["down", try RigText.positional(name, "rig")], timeout: 120).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// The command that opens a seat's live terminal from where Klieg runs.
@@ -231,10 +233,12 @@ public struct OpenRigClient: Sendable {
         return n["model"] as? String
     }
 
+    /// The attach command runs where Klieg runs, or over `ssh -t`. The far shell re-splits what ssh
+    /// sends it, so over ssh every word is quoted, as `command(_:)` does.
     static func attach(tmux: String?, session: String, host: String?) -> [String] {
         let local = tmux.map { $0.split(separator: " ").map(String.init) } ?? ["tmux", "attach", "-t", session]
         guard let host else { return local }
-        return ["ssh", "-t", host] + local
+        return ["ssh", "-t", host, local.map(RigText.shellQuote).joined(separator: " ")]
     }
 
     public static func parseQueue(_ data: Data) throws -> [QueueItem] {
@@ -295,6 +299,16 @@ public enum RigText {
     public static func shellQuote(_ s: String) -> String {
         if !s.isEmpty, s.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "@%+=:,./_-".contains($0)) }) { return s }
         return "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    /// A value that goes to a CLI as a positional argument (a seat, a pane, a message). Refuses one that
+    /// starts with "-", which the CLI would read as an option: an agent that prompt-injects the model
+    /// could otherwise turn a message into a flag such as `--dangerously-interact`.
+    public static func positional(_ value: String, _ what: String) throws -> String {
+        if value.hasPrefix("-") {
+            throw KliegError("The \(what) can't start with \"-\": a CLI would read it as an option. Got: \(value.prefix(40))")
+        }
+        return value
     }
 
     /// The first non-blank line, trimmed.

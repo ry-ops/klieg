@@ -9,7 +9,7 @@ private func herdrFix(_ name: String) -> String {
     return (try? String(contentsOf: dir.appendingPathComponent(name), encoding: .utf8)) ?? ""
 }
 
-private let rigHost = "ubuntu@100.67.70.121"
+private let rigHost = "ubuntu@rig.example"
 
 /// herdr's mixed session (with mypy on the trust screen) plus the recorded OpenRig seats.
 private func recordedSnapshot() -> Snapshot {
@@ -61,8 +61,8 @@ func spacesTests() {
     check(mypy?.status == .blocked, "space status is its most urgent agent (two blocked)")
     check(byName["docs"]?.status == .done, "done beats idle")
     check(byName["klieg-m1"]?.subtitle == "~/src/klieg", "herdr subtitle: cwd with ~ (no branch known)")
-    check(byName["kernel"]?.subtitle == "100.67.70.121 · 1 seat", "OpenRig subtitle: host and seat count (singular)")
-    check(byName["klieg-pair"]?.subtitle == "100.67.70.121 · 2 seats", "OpenRig subtitle: plural")
+    check(byName["kernel"]?.subtitle == "rig.example · 1 seat", "OpenRig subtitle: host and seat count (singular)")
+    check(byName["klieg-pair"]?.subtitle == "rig.example · 2 seats", "OpenRig subtitle: plural")
     check(byName["klieg-pair"]?.id == "openrig:klieg-pair" && byName["klieg-pair"]?.source == .openrig, "OpenRig space id is the rig")
     check(Spaces.group(snap).first { $0.name == "kernel" }?.subtitle == "local · 1 seat", "no OpenRig host: local")
     check(spaces.flatMap(\.agentIDs).count == 9, "every agent is in exactly one space")
@@ -92,8 +92,8 @@ func spacesTests() {
     // --- BranchResolver
     let clock = FakeClock()
     let git = FakeRunner()
-    git.on("ssh", "BatchMode=yes", "ubuntu@100.67.70.121", "'/home/ubuntu/src/it'\\''s here'", reply: "feature/quoted\n")
-    git.on("ssh", "ubuntu@100.67.70.121", "/home/ubuntu/src/klieg", reply: "m2-openrig\n")
+    git.on("ssh", "BatchMode=yes", "ubuntu@rig.example", "'/home/ubuntu/src/it'\\''s here'", reply: "feature/quoted\n")
+    git.on("ssh", "ubuntu@rig.example", "/home/ubuntu/src/klieg", reply: "m2-openrig\n")
     git.on("ssh", "herdr-host", "/home/ubuntu/src/klieg", reply: "m1-herdr\n")
     git.on("git -C /Users/ryan/src/klieg branch --show-current", reply: "main\n")
     git.on("git -C /tmp/detached", reply: "\n")

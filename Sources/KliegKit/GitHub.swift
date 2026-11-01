@@ -14,6 +14,18 @@ public struct GitHubClient: Sendable {
 
     static let prFields = "number,title,url,state,isDraft,headRefOid,statusCheckRollup"
 
+    /// A repo must look like "owner/name": it goes into a `gh api` path and a `--repo` option.
+    public static func checkRepo(_ repo: String) throws {
+        func word(_ s: Substring) -> Bool {
+            if s.isEmpty || s == "." || s == ".." || s.hasPrefix("-") { return false }
+            return s.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "_" || $0 == "-") }
+        }
+        let parts = repo.split(separator: "/", omittingEmptySubsequences: false)
+        guard parts.count == 2, word(parts[0]), word(parts[1]) else {
+            throw KliegError("\"\(repo.prefix(60))\" isn't a repo name. Use owner/name.")
+        }
+    }
+
     @discardableResult
     func gh(_ args: [String], timeout: Double = 30) throws -> CommandResult {
         let cmd = [ghPath] + args
@@ -25,6 +37,7 @@ public struct GitHubClient: Sendable {
     /// Open pull requests in `repo` ("owner/name") with their checks and whether the head commit is signed
     /// and verified. A commit whose signature can't be read is reported as `signed: nil`.
     public func pullRequests(repo: String, limit: Int = 30) throws -> [PullRequest] {
+        try Self.checkRepo(repo)
         let out = try gh(["pr", "list", "--repo", repo, "--state", "open", "--limit", String(limit), "--json", Self.prFields])
         return try Self.parsePullRequests(Data(out.stdout.utf8), repo: repo).map { pr, sha in
             var pr = pr
@@ -35,6 +48,8 @@ public struct GitHubClient: Sendable {
 
     /// True when GitHub shows the commit's signature as verified.
     public func verified(repo: String, sha: String) throws -> Bool {
+        try Self.checkRepo(repo)
+        guard !sha.isEmpty, sha.allSatisfy(\.isHexDigit) else { throw KliegError("\"\(sha.prefix(60))\" isn't a commit sha.") }
         let out = try gh(["api", "repos/\(repo)/commits/\(sha)", "--jq", ".commit.verification"])
         guard let v = try JSONSerialization.jsonObject(with: Data(out.stdout.utf8)) as? [String: Any] else {
             throw KliegError("gh api returned no verification for \(sha)")
@@ -46,6 +61,7 @@ public struct GitHubClient: Sendable {
     /// commit is verified. The merge is pinned to the head commit that was checked, so a push in between fails it.
     @discardableResult
     public func merge(repo: String, number: Int) throws -> String {
+        try Self.checkRepo(repo)
         let out = try gh(["pr", "view", String(number), "--repo", repo, "--json", Self.prFields])
         guard let o = try JSONSerialization.jsonObject(with: Data(out.stdout.utf8)) as? [String: Any],
               let parsed = Self.pullRequest(from: o, repo: repo) else {

@@ -35,7 +35,7 @@ def cli_lines():
     out += table(["NAME", "SOURCE", "KIND", "STATUS", "GROUP", "ID"], rows)
     out += ["", "Queue (1):"] + table(["ID", "STATE", "FROM", "TO", "SUMMARY"], [list(QITEM)])
     out += ["", "Pull requests (1):"] + table(["PR", "CHECKS", "SIGNED", "TITLE"], [list(PR)])
-    out += ["", "Needs you (1):", "  advisor-lead@kernel: permission_prompt  → ssh -t ubuntu@100.67.70.121 tmux attach -t advisor-lead@kernel"]
+    out += ["", "Needs you (1):", "  advisor-lead@kernel: permission_prompt  → ssh -t ubuntu@rig.example tmux attach -t advisor-lead@kernel"]
     return out
 
 

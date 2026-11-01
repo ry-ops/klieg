@@ -51,7 +51,7 @@ Settings live in `~/.config/klieg/config.json`. The easiest way to write it is t
 {
   "herdrMachine": "herdr",
   "herdrSession": "work",
-  "openrigHost": "ubuntu@100.67.70.121",
+  "openrigHost": "ubuntu@rig.example",
   "repos": ["ry-ops/klieg"],
   "refreshSeconds": 5,
   "readOnly": false
@@ -62,16 +62,16 @@ Settings live in `~/.config/klieg/config.json`. The easiest way to write it is t
 | --- | --- | --- |
 | `herdrMachine` | The herdr machine label, as saved with `herdr machine add`. Klieg runs `herdr --machine <label> …`. The label is also the ssh host used to open a herdr pane in the terminal. `null` or `""` means the herdr server on this computer. | `"herdr"` |
 | `herdrSession` | The herdr session to read. | `"work"` |
-| `openrigHost` | The ssh target of the host running the OpenRig daemon. Klieg runs `ssh -o BatchMode=yes <host> rig …`. `null` runs `rig` on this computer. (Use `null`, not `""`: an empty string here is passed to ssh as a host name.) | `"ubuntu@100.67.70.121"` |
-| `repos` | GitHub repos to watch for pull requests, as `owner/name`. | none |
+| `openrigHost` | The ssh target of the host running the OpenRig daemon. Klieg runs `ssh -o BatchMode=yes <host> rig …`. `null` runs `rig` on this computer. (Use `null`, not `""`: an empty string here is passed to ssh as a host name.) | `null` |
+| `repos` | GitHub repos to watch for pull requests, as `owner/name`. `klieg_merge_pr` only merges in these. | none |
 | `refreshSeconds` | Seconds between refreshes in the app and in `klieg timeline --watch`. | `5` |
 | `readOnly` | `true` refuses every action. | `false` |
 
-The defaults match the homelab Klieg was built for, so set `herdrMachine` and `openrigHost` for yours.
+Set `herdrMachine` and `openrigHost` for your machines: with the defaults, Klieg looks for a herdr machine labelled `herdr` and runs `rig` on this computer.
 
 Two things to know when editing by hand:
 
-- **A file that's missing `herdrSession`, `repos`, `refreshSeconds` or `readOnly`, or that isn't valid JSON, is ignored, and Klieg uses the defaults for everything.** Run `klieg config` to see the settings Klieg actually uses.
+- **A file that's missing `herdrSession`, `repos`, `refreshSeconds` or `readOnly`, or that isn't valid JSON, is ignored, and Klieg uses the defaults for everything.** It says so on stderr (`klieg: ignoring …`). Run `klieg config` to see the settings Klieg actually uses.
 - **A missing `herdrMachine` or `openrigHost` means "this computer"**, not the default.
 - **`"openrigHost": ""` doesn't mean this computer**: Klieg tries to ssh to an empty host name. Use `null`. (An empty `KLIEG_OPENRIG_HOST` and an empty OpenRig field in Settings both do mean this computer.)
 
@@ -197,7 +197,7 @@ klieg mcp uninstall             # remove only the klieg entry
 | `klieg_rig_up` | act | `spec` | Runs `rig up` with a spec path, library name or bundle link, or the name of a stopped rig. |
 | `klieg_rig_down` | destructive | `rig` | Runs `rig down`: stops every seat in the rig. OpenRig snapshots the rig first. |
 | `klieg_answer_prompt` | destructive | `agent`, `answer` | Answers the prompt an agent is stopped at. OpenRig: types `answer` into the seat. herdr: sends key names separated by spaces, such as `1`, `y enter` or `esc`. Refuses billing and usage-credit prompts. |
-| `klieg_merge_pr` | destructive | `repo`, `number` | Squash-merges a PR, only when it's open, not a draft, every check passed and the head commit is signed and verified. |
+| `klieg_merge_pr` | destructive | `repo`, `number` | Squash-merges a PR, only when it's open, not a draft, every check passed and the head commit is signed and verified. `repo` must be one of the watched `repos`. |
 
 `agent` is an id from `klieg_status`. A bare OpenRig session name such as `dev-build@my-rig` works too.
 
@@ -206,6 +206,8 @@ klieg mcp uninstall             # remove only the klieg entry
 - **Read-only mode.** With `readOnly` on (Settings, the config file or `KLIEG_READ_ONLY=1`), the MCP server refuses every act tool and changes nothing. The herdr client refuses actions on its own as well, and the app turns its action buttons off. Reading still works.
 - **Billing and usage-credit prompts are yours.** Before answering a prompt, Klieg reads the agent's screen again. It refuses if the last 30 lines mention any of: usage credit, credits, billing, extra usage, extra-usage, usage limit, rate limit, payment, purchase, add funds, subscription, upgrade your plan, spend limit or spending limit. For an OpenRig seat it reads the whole pane at a readable size. It refuses when the window is too small to show the whole prompt. The app turns **Answer** off for `billing` prompts.
 - **Merging needs green and signed.** `klieg_merge_pr` and the app's **Merge** refuse a PR that is closed, a draft, has no checks, has a check that failed or is still running, or whose head commit isn't verified by GitHub. Skipped and neutral checks count as passed. The merge is pinned to the head commit Klieg checked (`gh pr merge --squash --match-head-commit`), so a push in between makes it fail.
+- **Merging stays in your repos.** Over MCP, `klieg_merge_pr` refuses a repo that isn't in `repos`, so a model can't merge in every repo `gh` is signed in to. Repo names must be `owner/name`.
+- **Arguments can't turn into options.** Klieg passes seat names, pane ids, messages, answers and key names to `rig` and `herdr` as plain arguments. A value that starts with `-` is refused before anything runs, so text an agent put on its screen can't become a flag such as `--dangerously-interact` if it talks the model into echoing it. The same goes for the attach commands Klieg runs over ssh: every word is quoted for the far shell.
 - **Confirmations.** In the app, stopping a seat and merging a PR each ask you first. Answering a prompt shows you the screen before you type. Over MCP, the four destructive tools are marked destructive so a client can ask you first, and Klieg's server instructions tell Claude to confirm with you. Klieg itself doesn't wait for a confirmation over MCP.
 
 ### Known gaps
