@@ -172,3 +172,15 @@ def agent_card(x, y, w, h, name, source, kind="claude", cwd=None):
     if cwd:
         out += f'<text x="{x + 20}" y="{y + 74}" class="mono" font-size="11" fill="{FAINT}">{esc(cwd)}</text>'
     return out
+
+
+def window(x, y, w, h, title=None, cls=""):
+    """A Mac-style window: rounded card, title bar with the three traffic lights, optional centred title."""
+    c_attr = f' class="{cls}"' if cls else ""
+    out = f'<g{c_attr}><rect x="{x}" y="{y}" width="{w}" height="{h}" rx="12" fill="{CARD}" stroke="{EDGE}"/>'
+    out += f'<path d="M{x} {y + 34} h{w}" stroke="{EDGE}"/>'
+    for i, c in enumerate(("#ff5f57", "#febc2e", "#28c840")):
+        out += f'<circle cx="{x + 18 + i * 18}" cy="{y + 17}" r="5.5" fill="{c}" fill-opacity=".85"/>'
+    if title:
+        out += f'<text x="{x + w / 2:.1f}" y="{y + 22}" text-anchor="middle" class="sans" font-size="12.5" font-weight="600" fill="{DIM}">{esc(title)}</text>'
+    return out + "</g>"
