@@ -18,24 +18,10 @@ struct KliegApp: App {
                 .environment(app)
                 .frame(minWidth: 1000, minHeight: 600)
                 .preferredColorScheme(.dark)
-                .sheet(item: Bindable(app).panel) { p in PanelSheet(panel: p).environment(app) }
                 .onAppear { app.monitor.start() }
-                .sheet(item: Bindable(app).sheet) { sheet in
-                    switch sheet {
-                    case .read(let a): ReadSheet(agent: a).environment(app)
-                    case .prompt(let a): PromptSheet(agent: a).environment(app)
-                    case .answer(let a): AnswerSheet(agent: a).environment(app)
-                    }
-                }
-                .confirmationDialog(app.confirm?.title ?? "", isPresented: Binding(get: { app.confirm != nil }, set: { if !$0 { app.confirm = nil } }),
-                                    titleVisibility: .visible, presenting: app.confirm) { c in
-                    Button(c.title.replacingOccurrences(of: "?", with: ""), role: .destructive) { app.perform(c) }
-                    Button("Cancel", role: .cancel) {}
-                } message: { c in Text(c.message) }
-                .alert("Klieg couldn't do that", isPresented: Binding(get: { app.actionError != nil }, set: { if !$0 { app.actionError = nil } })) {
-                    Button("OK") {}
-                } message: { Text(app.actionError ?? "") }
         }
+        // No title bar: the window is all terminal, like herdr. The traffic lights float over the sidebar.
+        .windowStyle(.hiddenTitleBar)
         MenuBarExtra {
             MenuBarContent().environment(app)
         } label: {
@@ -55,49 +41,36 @@ struct KliegApp: App {
                     Button("Tab \(i)") { app.selectTab(number: i) }.keyboardShortcut(KeyEquivalent(Character("\(i)")))
                 }
                 Divider()
-                Button("Timeline") { app.panel = .timeline }.keyboardShortcut("l", modifiers: [.command, .shift])
-                Button("Pull Requests") { app.panel = .pullRequests }.keyboardShortcut("p", modifiers: [.command, .shift])
-                Button("Settings…") { app.panel = .settings }.keyboardShortcut(",")
+                Button("Timeline") { app.open(.timeline) }.keyboardShortcut("l", modifiers: [.command, .shift])
+                Button("Pull Requests") { app.open(.pullRequests) }.keyboardShortcut("p", modifiers: [.command, .shift])
+                Button("Settings…") { app.open(.settings) }.keyboardShortcut(",")
             }
-        }
-    }
-}
-
-enum Section: String, CaseIterable, Identifiable {
-    case board = "Board", needsYou = "Needs You", timeline = "Timeline", pullRequests = "Pull Requests", settings = "Settings"
-    var id: String { rawValue }
-    var icon: String {
-        switch self {
-        case .board: return "square.grid.2x2"
-        case .timeline: return "clock.arrow.circlepath"
-        case .needsYou: return "hand.raised"
-        case .pullRequests: return "arrow.triangle.pull"
-        case .settings: return "gearshape"
         }
     }
 }
 
 @Observable @MainActor
 final class AppState {
-    /// `--section <name>` (e.g. --section timeline) opens on that section; handy for screenshots.
-    var section: Section = {
-        let args = CommandLine.arguments
-        if let i = args.firstIndex(of: "--section"), i + 1 < args.count,
-           let s = Section.allCases.first(where: { $0.rawValue.lowercased().replacingOccurrences(of: " ", with: "-") == args[i + 1].lowercased() }) {
-            return s
-        }
-        return .board
-    }()
     let monitor = Monitor(config: KliegConfig.load())
-    let terminal = TerminalStore()
     var sheet: AgentSheet?
     var confirm: Confirmation?
-    var panel: Panel?
+    var actionError: String?
     var paletteOpen = false
     var selectedSpaceID: String?
     var selectedTab: TabID = .overview
     var shells: [TerminalTab] = []
+    /// Timeline, pull requests and settings, open as tabs.
+    var openPanels: [Panel] = []
     private var live: [String: TerminalTab] = [:]
+
+    init() {
+        // `--section timeline|pull-requests|settings` opens that panel at launch (handy for screenshots).
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--section"), i + 1 < args.count {
+            let asked = args[i + 1].lowercased().replacingOccurrences(of: "-", with: "")
+            if let p = Panel.allCases.first(where: { $0.rawValue.lowercased() == asked }) { open(p) }
+        }
+    }
 
     var spaces: [SpaceItem] { SpaceItem.group(monitor.snapshot, branches: monitor.branches, config: monitor.config) }
     var currentSpace: SpaceItem? {
@@ -117,9 +90,11 @@ final class AppState {
         let i = all.firstIndex { $0.id == currentSpace?.id } ?? 0
         select(space: all[(i + delta + all.count) % all.count].id)
     }
+    /// Tabs are numbered left to right: all, the space's agents, shells, then panels.
     func selectTab(number: Int) {
         var tabs: [TabID] = [.overview] + (currentSpace?.agents.map { TabID.agent($0.id) } ?? [])
         tabs += shells.map { TabID.shell($0.id) }
+        tabs += openPanels.map { TabID.panel($0) }
         if number - 1 < tabs.count { selectedTab = tabs[number - 1] }
     }
     /// `--agent <name>` opens that agent's tab once it first appears (handy for screenshots and demos).
@@ -160,7 +135,15 @@ final class AppState {
         shells.remove(at: i)
         if selectedTab == .shell(id) { selectedTab = .overview }
     }
-    var actionError: String?
+
+    func open(_ p: Panel) {
+        if !openPanels.contains(p) { openPanels.append(p) }
+        selectedTab = .panel(p)
+    }
+    func closePanel(_ p: Panel) {
+        openPanels.removeAll { $0 == p }
+        if selectedTab == .panel(p) { selectedTab = .overview }
+    }
 
     func perform(_ c: Confirmation) {
         let rig = monitor.openrig, gh = monitor.github
@@ -172,12 +155,6 @@ final class AppState {
             }
             actionError = err
         }
-    }
-
-    /// Opens an agent's live session in a new terminal tab.
-    func openTerminal(for agent: Agent) {
-        guard let cmd = agent.attachCommand, !cmd.isEmpty else { return }
-        terminal.newTab(running: cmd, title: agent.name)
     }
 }
 
@@ -197,75 +174,5 @@ struct MenuBarContent: View {
         Button("Refresh") { Task { await app.monitor.refresh() } }
         Divider()
         Button("Quit Klieg") { NSApp.terminate(nil) }.keyboardShortcut("q")
-    }
-}
-
-struct RootView: View {
-    @Environment(AppState.self) private var app
-
-    var body: some View {
-        @Bindable var app = app
-        NavigationSplitView {
-            List(Section.allCases, selection: $app.section) { s in
-                Label(s.rawValue, systemImage: s.icon).tag(s)
-            }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-        } detail: {
-            GeometryReader { geo in
-                VStack(spacing: 0) {
-                    if !(app.terminal.visible && app.terminal.maximized) {
-                        SectionView(section: app.section)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    if app.terminal.visible {
-                        @Bindable var term = app.terminal
-                        PanelResizeHandle(height: $term.height, maxHeight: geo.size.height - 80)
-                        TerminalPanel()
-                            .frame(height: app.terminal.maximized ? nil : app.terminal.height)
-                    }
-                }
-            }
-            .toolbar {
-                ToolbarItem {
-                    Button { app.terminal.toggle() } label: { Label("Terminal", systemImage: "terminal") }
-                        .help("Show or hide the terminal (⌃`)")
-                }
-            }
-        }
-    }
-}
-
-struct SectionView: View {
-    let section: Section
-    var body: some View {
-        switch section {
-        case .board: BoardView()
-        case .needsYou: NeedsYouView()
-        case .timeline: TimelineView()
-        case .pullRequests: PullRequestsView()
-        case .settings: SettingsView()
-        }
-    }
-}
-
-/// Placeholder content until its milestone fills the section in (see ROADMAP.md).
-struct PlaceholderView: View {
-    let section: Section
-    var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: section.icon).font(.system(size: 40)).foregroundStyle(.secondary)
-            Text(section.rawValue).font(.title2.bold())
-            Text(blurb).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 420)
-        }
-        .padding()
-    }
-    var blurb: String {
-        switch section {
-        case .board: return "Every herdr agent and OpenRig seat, with its state."
-        case .timeline: return "Claims, handoffs, verdicts, PRs and CI, in order. (M3)"
-        case .needsYou: return "Agents waiting on you: approvals, questions, credit prompts. (M3)"
-        case .pullRequests: return "PRs the agents opened, with CI and signing status. (M3)"
-        case .settings: return "Machines, rigs and repos Klieg watches. (M3)"
-        }
     }
 }
