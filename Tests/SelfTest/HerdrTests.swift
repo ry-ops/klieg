@@ -108,7 +108,7 @@ func herdrTests() {
     check(remote.prefix == ["herdr", "--machine", "herdr"], "remote client uses --machine")
     let ra = (try? remote.agents(now: t0))?.first
     check(ra?.id == "herdr:herdr/w3:p1", "remote and local give the same agent id")
-    check(ra?.attachCommand == ["ssh", "-t", "herdr", "herdr", "--session", "work", "agent", "attach", "w3:p1"],
+    check(ra?.attachCommand == ["ssh", "-t", "herdr", "bash -lc 'herdr --session work agent attach w3:p1'"],
           "remote attach goes over ssh")
     var hosted = remote; hosted.sshHost = "ubuntu@100.64.0.9"
     check(hosted.attachCommand(pane: "w1:p1")[2] == "ubuntu@100.64.0.9", "ssh host can be set")

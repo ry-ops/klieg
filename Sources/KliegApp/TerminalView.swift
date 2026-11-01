@@ -41,7 +41,7 @@ final class TerminalTab: Identifiable {
         }
     }
 
-    static let background = NSColor(red: 0.118, green: 0.118, blue: 0.125, alpha: 1)
+    static let background = NSColor(red: 0x13 / 255, green: 0x14 / 255, blue: 0x18 / 255, alpha: 1)
 
     var label: String {
         if pinnedTitle { return title }

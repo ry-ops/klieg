@@ -10,6 +10,9 @@ final class Monitor {
     private(set) var events: [TimelineEvent] = []
     private(set) var lastRefresh: Date?
     private(set) var refreshing = false
+    /// git branch by agent id, for the spaces list. Looked up in the background, cached for a minute.
+    private(set) var branches: [String: String] = [:]
+    private var resolver: BranchResolver?
     var config: KliegConfig
 
     private let store: TimelineStore
@@ -69,6 +72,14 @@ final class Monitor {
             return (Timeline.carryOver(from: store.lastSnapshot(), to: s), e)
         }.value
         snapshot = snap
+        let herdrHost = herdr.sshHost, agents = snap.agents.filter { $0.source != .github }
+        if resolver == nil || resolver?.openrigHost != cfg.openrigHost || resolver?.herdrHost != herdrHost {
+            resolver = BranchResolver(openrigHost: cfg.openrigHost, herdrHost: herdrHost)
+        }
+        if let r = resolver {
+            let found = await Task.detached(priority: .utility) { r.branches(for: agents) }.value
+            if found != branches { branches = found }
+        }
         if !fresh.isEmpty { events = Array((events + fresh).suffix(500)) }
         lastRefresh = Date()
         refreshing = false

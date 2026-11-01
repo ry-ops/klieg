@@ -142,9 +142,25 @@ public struct HerdrClient: Sendable {
             return HerdrClient(target: .local(session: c.herdrSession), machine: hostname, readOnly: c.readOnly, runner: runner)
         }
         let insideHerdr = ProcessInfo.processInfo.environment["HERDR_ENV"] == "1"
-        let saved = insideHerdr ? false : savedMachines(runner: runner).contains(label)
-        let target: Target = saved ? .remote(machine: label, session: c.herdrSession) : .local(session: c.herdrSession)
-        return HerdrClient(target: target, machine: label, readOnly: c.readOnly, runner: runner)
+        let machines = insideHerdr ? [:] : savedMachineTargets(runner: runner)
+        guard let sshTarget = machines[label] else {
+            return HerdrClient(target: .local(session: c.herdrSession), machine: label, readOnly: c.readOnly, runner: runner)
+        }
+        // The saved machine's ssh target (user@host) is what attach needs; the label is only herdr's name for it.
+        return HerdrClient(target: .remote(machine: label, session: c.herdrSession), machine: label,
+                           sshHost: sshTarget.isEmpty ? nil : sshTarget, readOnly: c.readOnly, runner: runner)
+    }
+
+    /// Saved machines by label and id, mapped to their ssh target ("" when herdr doesn't report one).
+    static func savedMachineTargets(herdr: String = "herdr", runner: Runner) -> [String: String] {
+        guard let r = try? runner([herdr, "machine", "list", "--json"], 10), r.ok,
+              let list = try? JSONSerialization.jsonObject(with: Data(r.stdout.utf8)) as? [[String: Any]] else { return [:] }
+        var out: [String: String] = [:]
+        for m in list {
+            let target = m["target"] as? String ?? ""
+            for key in ["label", "id", "name"] { if let v = m[key] as? String { out[v] = target } }
+        }
+        return out
     }
 
     /// Labels and ids from `herdr machine list --json`; empty when herdr is missing or has none.
@@ -278,7 +294,8 @@ public struct HerdrClient: Sendable {
         case .local(let s):
             return [herdr, "--session", s, "agent", "attach", pane]
         case .remote(let m, let s):
-            return ["ssh", "-t", sshHost ?? m, "herdr", "--session", s, "agent", "attach", pane]
+            // Through a login shell, so herdr in ~/.local/bin is on PATH on the far side.
+            return ["ssh", "-t", sshHost ?? m, "bash -lc " + RigText.shellQuote("herdr --session \(s) agent attach \(pane)")]
         }
     }
 
