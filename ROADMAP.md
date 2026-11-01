@@ -38,3 +38,9 @@ Board, Timeline, Needs You (with macOS notifications), Pull Requests and Setting
 
 ## M4: Polish (Mac)
 Icon, README screenshots, `--install`, MCP registration in Claude Code, release 0.1.0.
+
+## Follow-ups from the security review (Mac)
+PR #17 hardened the MCP tools and was verified by the Linux CI build and self-test. These pieces need a Mac or the live `rig` and `herdr` CLIs, which the review session didn't have:
+- **Build the app and run the self-test on macOS** after #17. CI covers KliegKit, KliegServer and the CLI on Linux only. #17 changed `Shell.run` (stdin on its own thread, SIGPIPE ignored) and the default `openrigHost`, both of which the app uses, so build with `scripts/build-app.sh` and run `swift run klieg-selftest` on the Mac once.
+- **Bump SwiftTerm from 1.99.1 to 1.99.2** in `Package.swift` and `Package.resolved`. Not a security fix (the only SwiftTerm advisory, CVE-2022-23465, was fixed in 1.2.0), so it was left out of #17 rather than ship an app change nobody could compile. Build and open the app to check the terminal still works.
+- **Use `--` instead of refusing values that start with `-`**, if `rig` and `herdr` accept `--` to end their options. `RigText.positional` refuses a seat, pane, message, answer or key that starts with `-` so it can't be read as an option. Passing `--` before positional values would be the cleaner fix and would let a message start with `-`. Check both CLIs first: a `--` that a CLI doesn't understand breaks every command.
