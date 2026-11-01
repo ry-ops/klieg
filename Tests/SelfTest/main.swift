@@ -51,6 +51,7 @@ section("config") {
 section("herdr (M1)") { herdrTests() }
 section("openrig (M2)") { openrigTests() }
 section("collector (M3b)") { collectorTests() }
+section("mcp install (M4)") { mcpInstallTests() }
 
 print("klieg-selftest: \(passed) passed, \(failed.count) failed")
 for f in failed { print("  ✗ \(f)") }
