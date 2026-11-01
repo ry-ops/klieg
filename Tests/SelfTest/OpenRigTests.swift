@@ -99,7 +99,7 @@ func openrigTests() {
     check(compact.count == 2, "reads the compact {entries:[…]} shape")
     check(compact.first?.status == .blocked && compact.first?.attentionReason == "stale_runtime_hook", "compact: needsAttention is blocked")
     check(compact.last?.model == "claude-opus-5-5", "compact: model from the observation array")
-    check(compact.last?.attachCommand == ["ssh", "-t", "ubuntu@rig-host", "tmux", "attach", "-t", "dev-build@klieg-pair"], "remote attach goes over ssh -t")
+    check(compact.last?.attachCommand == ["ssh", "-t", "ubuntu@rig-host", "tmux attach -t dev-build@klieg-pair"], "remote attach goes over ssh -t, quoted for the far shell")
 
     // Queue items.
     let queue = (try? OpenRigClient.parseQueue(Data(openrigFixture("queue-list.json").utf8))) ?? []
