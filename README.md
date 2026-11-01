@@ -62,7 +62,7 @@ Settings live in `~/.config/klieg/config.json`. The easiest way to write it is t
 | --- | --- | --- |
 | `herdrMachine` | The herdr machine label, as saved with `herdr machine add`. Klieg runs `herdr --machine <label> …`. The label is also the ssh host used to open a herdr pane in the terminal. `null` or `""` means the herdr server on this computer. | `"herdr"` |
 | `herdrSession` | The herdr session to read. | `"work"` |
-| `openrigHost` | The ssh target of the host running the OpenRig daemon. Klieg runs `ssh -o BatchMode=yes <host> rig …`. `null` or `""` runs `rig` on this computer. | `"ubuntu@100.67.70.121"` |
+| `openrigHost` | The ssh target of the host running the OpenRig daemon. Klieg runs `ssh -o BatchMode=yes <host> rig …`. `null` runs `rig` on this computer. (Use `null`, not `""`: an empty string here is passed to ssh as a host name.) | `"ubuntu@100.67.70.121"` |
 | `repos` | GitHub repos to watch for pull requests, as `owner/name`. | none |
 | `refreshSeconds` | Seconds between refreshes in the app and in `klieg timeline --watch`. | `5` |
 | `readOnly` | `true` refuses every action. | `false` |
@@ -73,6 +73,7 @@ Two things to know when editing by hand:
 
 - **A file that's missing `herdrSession`, `repos`, `refreshSeconds` or `readOnly`, or that isn't valid JSON, is ignored, and Klieg uses the defaults for everything.** Run `klieg config` to see the settings Klieg actually uses.
 - **A missing `herdrMachine` or `openrigHost` means "this computer"**, not the default.
+- **`"openrigHost": ""` doesn't mean this computer**: Klieg tries to ssh to an empty host name. Use `null`. (An empty `KLIEG_OPENRIG_HOST` and an empty OpenRig field in Settings both do mean this computer.)
 
 Klieg also uses the local herdr server, even with `herdrMachine` set, when it runs inside a herdr pane, or when the label isn't one of the machines `herdr machine list` shows (it assumes it's on the herdr host).
 
@@ -102,6 +103,7 @@ Every agent gets one of these states, whether it comes from herdr or OpenRig:
 When Klieg knows why an agent is blocked, it says so:
 
 - `permission_prompt`: OpenRig's reason when a seat is asking to approve something.
+- `approval_or_question`: a herdr agent that herdr reports as blocked.
 - `trust_prompt`: Claude Code's first-run "do you trust this folder" screen. herdr reports that screen as idle, so Klieg reads the pane and marks it blocked.
 - `billing`: OpenRig reports a usage-credit or billing screen as a permission prompt. Klieg reads each blocked seat's screen and labels those `billing`, because only you should answer them.
 
@@ -116,7 +118,7 @@ The sidebar has five sections:
 
   ![Needs You](docs/images/needs-you.png)
 
-- **Timeline:** state changes, agents appearing and stopping, OpenRig queue items arriving and changing state, and pull requests being merged or closed, as they happen.
+- **Timeline:** state changes, agents appearing and stopping, OpenRig queue items arriving and moving between pending, in progress and blocked, and pull requests opening and their checks finishing, as they happen. Items that finish and PRs that merge or close drop out of view rather than getting an event; `klieg_timeline` over MCP does show finished queue items.
 
   ![Timeline](docs/images/timeline.png)
 
@@ -157,7 +159,7 @@ klieg herdr read <agent> [lines]   Print a herdr agent's recent terminal text (d
 ```
 
 - **`klieg status`** prints a table of agents, the open OpenRig queue, open pull requests and who needs you, with the command that opens each waiting agent. It exits with 1 when any source couldn't be read, and says which one.
-- **`klieg timeline`** compares what Klieg sees now with what it saw last time and keeps the events (up to 500) in `~/.config/klieg/timeline.jsonl`. It prints the last 50. `--watch` prints the last 10, then new events as they happen. `--json` prints one JSON object per line.
+- **`klieg timeline`** compares what Klieg sees now with what it saw last time (the same events as the app's Timeline) and keeps the events (up to 500) in `~/.config/klieg/timeline.jsonl`. It prints the last 50. `--watch` prints the last 10, then new events as they happen. `--json` prints one JSON object per line.
 - **`klieg herdr`** takes a Klieg id (`herdr:<machine>/<pane>`), a herdr pane id (`w1:p1`) or an agent name. herdr refuses a prompt while the agent is waiting on a person.
 
 ## Claude integration (MCP)
@@ -168,7 +170,7 @@ Register it with Claude Code yourself for now:
 
 ```bash
 claude mcp add --scope user klieg -- ~/.local/bin/klieg mcp
-claude mcp add --scope user -e KLIEG_READ_ONLY=1 klieg -- ~/.local/bin/klieg mcp   # or read-only
+claude mcp add --scope user klieg -e KLIEG_READ_ONLY=1 -- ~/.local/bin/klieg mcp   # or read-only
 ```
 
 ### Coming with 0.1.0: `klieg mcp install`
@@ -177,7 +179,7 @@ claude mcp add --scope user -e KLIEG_READ_ONLY=1 klieg -- ~/.local/bin/klieg mcp
 
 ### Tools
 
-**Read** tools change nothing. **Act** tools change something and are refused in read-only mode. **Destructive** act tools carry `destructiveHint: true`, so Claude asks you before using them.
+**Read** tools change nothing. **Act** tools change something and are refused in read-only mode. **Destructive** act tools carry `destructiveHint: true`, so a client such as Claude Code can ask you before using them. The hint is advisory: Klieg can't make a client ask.
 
 | Tool | Kind | Arguments | What it does |
 | --- | --- | --- | --- |
@@ -199,9 +201,9 @@ claude mcp add --scope user -e KLIEG_READ_ONLY=1 klieg -- ~/.local/bin/klieg mcp
 ## Guardrails
 
 - **Read-only mode.** With `readOnly` on (Settings, the config file or `KLIEG_READ_ONLY=1`), the MCP server refuses every act tool and changes nothing. The herdr client refuses actions on its own as well, and the app turns its action buttons off. Reading still works.
-- **Billing and usage-credit prompts are yours.** Before answering a prompt, Klieg reads the agent's screen again. It refuses if the last 30 lines mention any of: usage credit, credits, billing, extra usage, usage limit, rate limit, payment, purchase, add funds, subscription, upgrade your plan, spend limit or spending limit. For an OpenRig seat it reads the whole pane at a readable size. It refuses when the window is too small to show the whole prompt. The app turns **Answer** off for `billing` prompts.
+- **Billing and usage-credit prompts are yours.** Before answering a prompt, Klieg reads the agent's screen again. It refuses if the last 30 lines mention any of: usage credit, credits, billing, extra usage, extra-usage, usage limit, rate limit, payment, purchase, add funds, subscription, upgrade your plan, spend limit or spending limit. For an OpenRig seat it reads the whole pane at a readable size. It refuses when the window is too small to show the whole prompt. The app turns **Answer** off for `billing` prompts.
 - **Merging needs green and signed.** `klieg_merge_pr` and the app's **Merge** refuse a PR that is closed, a draft, has no checks, has a check that failed or is still running, or whose head commit isn't verified by GitHub. Skipped and neutral checks count as passed. The merge is pinned to the head commit Klieg checked (`gh pr merge --squash --match-head-commit`), so a push in between makes it fail.
-- **Confirmations.** In the app, stopping a seat and merging a PR each ask you first. Answering a prompt shows you the screen before you type. Over MCP, the four destructive tools are marked so Claude asks you, and Klieg's server instructions tell it to.
+- **Confirmations.** In the app, stopping a seat and merging a PR each ask you first. Answering a prompt shows you the screen before you type. Over MCP, the four destructive tools are marked destructive so a client can ask you first, and Klieg's server instructions tell Claude to confirm with you. Klieg itself doesn't wait for a confirmation over MCP.
 
 ### Known gaps
 
@@ -291,7 +293,7 @@ swift build --product klieg
 swift run klieg-selftest
 ```
 
-The self-test is a plain executable, so it needs neither XCTest nor Xcode. It replays recorded output from `herdr`, `rig` and `gh`, so it never touches a live agent or GitHub. On Linux, `swift build` removes SwiftTerm from `Package.resolved`. Don't commit that change (`git checkout -- Package.resolved`).
+The self-test is a plain executable, so it needs neither XCTest nor Xcode. It replays recorded output from `herdr`, `rig` and `gh`, so it never touches a live agent or GitHub. On Linux, `swift build` rewrites or deletes `Package.resolved`, because SwiftTerm is macOS only. Don't commit that change (`git checkout -- Package.resolved`).
 
 ## License
 
