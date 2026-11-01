@@ -24,6 +24,13 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
 cp "$BIN/KliegApp" "$APP/Contents/MacOS/KliegApp"
 cp "$BIN/klieg" "$APP/Contents/Helpers/klieg"
 
+if [ ! -f build/AppIcon.icns ] || [ scripts/make-icon.swift -nt build/AppIcon.icns ]; then
+  echo "→ Drawing icon"
+  swift scripts/make-icon.swift build/AppIcon.iconset >/dev/null
+  iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
+fi
+cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -33,6 +40,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>Klieg</string>
   <key>CFBundleIdentifier</key><string>dev.ry-ops.klieg</string>
   <key>CFBundleExecutable</key><string>KliegApp</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
   <key>CFBundleVersion</key><string>${VERSION}</string>

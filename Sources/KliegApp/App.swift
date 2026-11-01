@@ -65,7 +65,15 @@ enum Section: String, CaseIterable, Identifiable {
 
 @Observable @MainActor
 final class AppState {
-    var section: Section = .board
+    /// `--section <name>` (e.g. --section timeline) opens on that section; handy for screenshots.
+    var section: Section = {
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--section"), i + 1 < args.count,
+           let s = Section.allCases.first(where: { $0.rawValue.lowercased().replacingOccurrences(of: " ", with: "-") == args[i + 1].lowercased() }) {
+            return s
+        }
+        return .board
+    }()
     let monitor = Monitor(config: KliegConfig.load())
     let terminal = TerminalStore()
     var sheet: AgentSheet?
