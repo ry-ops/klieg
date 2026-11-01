@@ -120,6 +120,8 @@ def build():
     b.append(f'<g class="{lit}"><path d="M{bx - 30} {by + 6} l8 -18 h6 l8 18 z" fill="{STATUS["blocked"]}"/>'
              f'<text x="{bx}" y="{by + 5}" class="sans" font-size="15" font-weight="800" fill="{STATUS["blocked"]}">1</text></g>')
     b.append(f'<text x="{bx}" y="{by + 5}" class="sans {tl.visible_until(4.6)}" font-size="13" fill="{DIM}">0</text>')
+    # Back to 0 once you've answered; it stays through the loop's end and under reduced motion.
+    b.append(f'<text x="{bx}" y="{by + 5}" class="sans {tl.hold(8.4)}" font-size="13" fill="{DIM}">0</text>')
 
     # --- The stage: four agent cards.
     cards = [
